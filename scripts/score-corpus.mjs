@@ -11,7 +11,8 @@
 // Usage:
 //   node scripts/score-corpus.mjs <corpus-name> [--rule <id>] [--update-baseline] [--threshold 0.05]
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -64,6 +65,26 @@ for (const run of sarif.runs || []) {
     const line = loc?.region?.startLine ?? null;
     const cwes = extractCwe(res, ruleMeta[res.ruleId]);
     findings.push({ file: base(file), line, cwe: cwes, ruleId: res.ruleId });
+  }
+}
+
+// 2b. ALSO run the ast-grep ruleset (the majority of the corpus). score-corpus
+// previously only scanned packs/ (opengrep), making every astgrep/ rule invisible
+// to corpus baselines. Run all astgrep/ rules via a temp sgconfig and merge findings.
+if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
+  const cweById = buildAstGrepCweMap(join(ROOT, 'astgrep'));
+  const sgDir = mkdtempSync(join(tmpdir(), 'bpm-sgconf-'));
+  writeFileSync(join(sgDir, 'sgconfig.yml'), `ruleDirs:\n  - ${join(ROOT, 'astgrep')}\n`);
+  try {
+    const out = execFileSync('ast-grep', ['scan', '-c', join(sgDir, 'sgconfig.yml'), '--json', corpusPath],
+      { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const m of JSON.parse(out || '[]')) {
+      const ruleId = m.ruleId || m.rule_id || '';
+      findings.push({ file: base(m.file || ''), line: m.range?.start?.line != null ? m.range.start.line + 1 : null, cwe: cweById[ruleId] || [], ruleId });
+    }
+  } catch (e) {
+    try { for (const m of JSON.parse(e.stdout || '[]')) { const ruleId = m.ruleId || m.rule_id || ''; findings.push({ file: base(m.file || ''), line: m.range?.start?.line != null ? m.range.start.line + 1 : null, cwe: cweById[ruleId] || [], ruleId }); } }
+    catch { console.error(`ast-grep pass failed: ${e.message.split('\n')[0]}`); }
   }
 }
 
@@ -125,6 +146,25 @@ process.exit(regressed && !updateBaseline ? 1 : 0);
 
 // ── helpers ──
 function base(p) { return String(p).split('/').slice(-2).join('/'); }
+// Map each ast-grep rule id → its metadata.cwe (so ast-grep findings can match labels by CWE).
+function buildAstGrepCweMap(dir) {
+  const map = {};
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.ya?ml$/.test(e.name)) {
+        const t = readFileSync(p, 'utf8');
+        const id = t.match(/^id:\s*(\S+)/m)?.[1];
+        if (!id) continue;
+        const cweLine = t.match(/^\s*cwe:\s*\[([^\]]*)\]/m)?.[1] || '';
+        map[id] = cweLine.split(',').map((s) => s.replace(/\D/g, '')).filter(Boolean);
+      }
+    }
+  };
+  try { walk(dir); } catch { /* no astgrep dir */ }
+  return map;
+}
 function labelKey(l) { return `${base(l.file)}:${l.line ?? '*'}:${(l.cwe || []).join(',')}`; }
 function lineNear(a, b) { if (a == null || b == null) return true; return Math.abs(a - b) <= 2; }
 function cweOverlap(a, b) { const A = arr(a), B = arr(b); return A.length === 0 || B.length === 0 ? false : A.some((x) => B.includes(x)); }
