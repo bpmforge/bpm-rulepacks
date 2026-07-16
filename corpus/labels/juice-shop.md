@@ -53,11 +53,21 @@ search-result/search-result.component}.ts`).
 Note some vuln labels share a `(file, line, cwe)` position when multiple
 challenge keys with the *same* CWE mark the same line (e.g.
 `loginAdminChallenge`/`loginBenderChallenge`/`loginJimChallenge` all mark
-`routes/login.ts:34` as CWE-89) — the scorer keys a match on
-`(file, line, cwe)`, so these correctly count as one recall opportunity, not
-three; they are not deduplicated in the labels file itself (each challenge
-key's own label is worth keeping in case rules ever diverge on CWE
-specificity per key).
+`routes/login.ts:34` as CWE-89). They are **not** deduplicated in the labels
+file (each challenge key's own label is worth keeping in case rules ever
+diverge on CWE specificity per key) — but that means the scorer's
+`fn = consideredVuln.filter(not matched).length` walks the raw (non-deduped)
+label array, so an *unmatched* duplicate position counts once per duplicate
+label, not once per position. This is exactly what happened in this baseline:
+the one TP landed on `routes/search.ts:23` (`unionSqlInjectionChallenge` /
+`dbSchemaChallenge`, 2 labels at that position, both counted matched); the
+`routes/login.ts:34` triple was *not* matched by any finding and so
+contributes 3 to FN, not 1. (A *matched* duplicate position does collapse —
+`matchedVuln` is a `Set` keyed by `(file,line,cwe)` — so only unmatched
+duplicates over-count FN relative to "distinct vulnerable positions".) Net
+effect: FN=39 is measured against the raw 41-label array (41 − 2 matched =
+39), not against ~36 distinct positions — worth knowing if this number is
+ever compared to a hand count of "how many lines are actually wrong".
 
 ## Marker parsing note (why not a naive grep)
 

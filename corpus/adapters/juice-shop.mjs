@@ -48,7 +48,7 @@
 // CWE taxonomy; some picks are judgment calls, called out in the note.
 //
 // Usage: CORPUS_DIR=... node corpus/adapters/juice-shop.mjs
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = new URL('../..', import.meta.url).pathname;
@@ -131,7 +131,8 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.angular', 
 const MARKER_RE = /(?:\/\/|#)\s*vuln-code-snippet\s+(start|end|vuln-line|neutral-line|hide-line|hide-start|hide-end)\b(.*)$/;
 
 function* walk(dir) {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
+  const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  for (const e of entries) {
     if (SKIP_DIRS.has(e.name)) continue;
     const p = join(dir, e.name);
     if (e.isDirectory()) yield* walk(p);

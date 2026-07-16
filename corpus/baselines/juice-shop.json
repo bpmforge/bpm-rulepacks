@@ -26,15 +26,15 @@
       "fp": 0,
       "unlabeled": 3
     },
-    "bpm-framework-fastify-route-missing-schema": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 271
-    },
     "bpm-owasp-a03-sql-string-concat": {
       "tp": 1,
       "fp": 0,
       "unlabeled": 4
+    },
+    "bpm-framework-fastify-route-missing-schema": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 271
     },
     "bpm-owasp-a07-plaintext-password-compare": {
       "tp": 0,
@@ -46,17 +46,17 @@
       "fp": 0,
       "unlabeled": 1
     },
-    "bpm-slop-empty-catch": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 1
-    },
     "bpm-slop-fallback-hides-failure": {
       "tp": 0,
       "fp": 0,
       "unlabeled": 1
     },
     "bpm-slop-try-parse-fallback": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "bpm-slop-empty-catch": {
       "tp": 0,
       "fp": 0,
       "unlabeled": 1
