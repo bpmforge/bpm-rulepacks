@@ -43,7 +43,10 @@ function have(bin) { try { execFileSync('sh', ['-c', `command -v ${bin}`], { std
 console.log(`scoring '${name}' with ${engine} over ${corpusPath} ...`);
 let sarif;
 try {
-  const out = execFileSync(engine, ['scan', '--config', join(ROOT, 'packs'), '--sarif', '--metrics=off', corpusPath],
+  // --metrics=off is a semgrep flag; opengrep doesn't accept it (and doesn't phone home by default).
+  const scanArgs = ['scan', '--config', join(ROOT, 'packs'), '--sarif',
+    ...(engine === 'semgrep' ? ['--metrics=off'] : []), corpusPath];
+  const out = execFileSync(engine, scanArgs,
     { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   sarif = JSON.parse(out);
 } catch (e) {
