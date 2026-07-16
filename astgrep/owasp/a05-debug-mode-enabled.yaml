@@ -1,0 +1,19 @@
+id: bpm-owasp-a05-debug-mode-enabled
+language: python
+severity: warning
+rule:
+  pattern: 'DEBUG = True'
+message: >
+  DEBUG is hardcoded to True in a settings module (OWASP A05:2021, CWE-489:
+  Active Debug Code). Running with debug mode on in production leaks
+  stack traces, local variables, and internal paths to any visitor who
+  triggers an error. Read this from an environment variable and default to
+  False.
+metadata:
+  license: proprietary
+  provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A05"
+  cwe: [489]
+  owasp: "A05:2021"
+  confidence: medium
+  concept: infra_iac
+  since: "0.1.0"
