@@ -1,0 +1,65 @@
+{
+  "tp": 1,
+  "fp": 0,
+  "fn": 39,
+  "precision": 1,
+  "recall": 0.025,
+  "f1": 0.04878048780487806,
+  "perRule": {
+    "packs.secrets.bpm-secret-generic-assignment": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 14
+    },
+    "packs.owasp.bpm-owasp-a10-ssrf-user-controlled-url": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "packs.owasp.bpm-owasp-a03-path-traversal": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 2
+    },
+    "bpm-slop-try-catch-in-loop": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 3
+    },
+    "bpm-framework-fastify-route-missing-schema": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 271
+    },
+    "bpm-owasp-a03-sql-string-concat": {
+      "tp": 1,
+      "fp": 0,
+      "unlabeled": 4
+    },
+    "bpm-owasp-a07-plaintext-password-compare": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 10
+    },
+    "bpm-owasp-a07-hardcoded-jwt-secret": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "bpm-slop-empty-catch": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "bpm-slop-fallback-hides-failure": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "bpm-slop-try-parse-fallback": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    }
+  }
+}
