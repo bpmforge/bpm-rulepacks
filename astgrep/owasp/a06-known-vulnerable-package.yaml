@@ -1,0 +1,22 @@
+id: bpm-owasp-a06-known-vulnerable-package
+language: json
+severity: warning
+rule:
+  kind: pair
+  regex: '^"(request|node-serialize|serialize-javascript)"\s*:'
+message: >
+  A dependency manifest declares a package with a long history of unpatched
+  CVEs and/or no active maintenance ("request" deprecated since 2020 with
+  known SSRF/ReDoS issues; "node-serialize"/"serialize-javascript" have had
+  remote-code-execution advisories via unsafe deserialization) (OWASP
+  A06:2021, CWE-1104: Use of Unmaintained Third Party Components). Replace
+  with an actively maintained equivalent (e.g. "got"/"undici" for "request")
+  and re-run a CVE scan (osv-scanner/npm audit) before shipping.
+metadata:
+  license: proprietary
+  provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A06"
+  cwe: [1104]
+  owasp: "A06:2021"
+  confidence: medium
+  concept: dependency_supply_chain
+  since: "0.1.0"

@@ -1,0 +1,8 @@
+name: CI
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8f4b7f84864484a7bde6b74e792c48c05e9f81ee
+      - run: npm test
