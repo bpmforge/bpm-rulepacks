@@ -1,0 +1,5 @@
+{
+  "_comment": "Pinned labeled vulnerable-code corpora for Tier-2 rule scoring. Referenced by SHA, NEVER vendored (some are GPL/AGPL; this repo is proprietary). Every entry REQUIRES an SPDX `license` and `vendor:false`. Populate from docs/CORPUS.md once the license-verification research lands — do NOT add a corpus without a confirmed license. Fields: name, url, sha, license (SPDX), languages[], labels (how ground truth is derived → corpus/labels/<name>.json via an adapter), notes.",
+  "schemaVersion": 1,
+  "corpora": []
+}

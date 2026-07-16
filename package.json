@@ -7,7 +7,9 @@
   "scripts": {
     "test": "node scripts/test-rules.mjs",
     "validate": "node scripts/validate-provenance.mjs",
-    "check": "npm run validate && npm run test"
+    "check": "npm run validate && npm run test",
+    "corpus:fetch": "node corpus/fetch.mjs",
+    "score": "node scripts/score-corpus.mjs"
   },
   "license": "SEE LICENSE IN LICENSE"
 }
