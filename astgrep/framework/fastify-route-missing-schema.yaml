@@ -1,0 +1,40 @@
+id: bpm-framework-fastify-route-missing-schema
+language: typescript
+severity: warning
+rule:
+  any:
+    - pattern: $APP.get($ROUTE, $HANDLER)
+    - pattern: $APP.post($ROUTE, $HANDLER)
+    - pattern: $APP.put($ROUTE, $HANDLER)
+    - pattern: $APP.patch($ROUTE, $HANDLER)
+    - pattern: $APP.delete($ROUTE, $HANDLER)
+    - pattern: $APP.get($ROUTE, $OPTS, $HANDLER)
+    - pattern: $APP.post($ROUTE, $OPTS, $HANDLER)
+    - pattern: $APP.put($ROUTE, $OPTS, $HANDLER)
+    - pattern: $APP.patch($ROUTE, $OPTS, $HANDLER)
+    - pattern: $APP.delete($ROUTE, $OPTS, $HANDLER)
+  not:
+    has:
+      stopBy: end
+      pattern:
+        context: '({ schema: $S })'
+        selector: pair
+constraints:
+  ROUTE:
+    kind: string
+message: >
+  A Fastify route handler is registered with no `schema` option (Fastify
+  framework knowledge, CWE-20: Improper Input Validation). Without a JSON
+  Schema, Fastify performs no request validation or response
+  serialization allow-listing — malformed or attacker-controlled bodies,
+  query strings, and params reach the handler unchecked. Add a `schema`
+  option (`body`/`querystring`/`params`/`response`) to the route.
+# Primary source: Fastify docs (Validation and Serialization).
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [20]
+  framework: fastify
+  confidence: medium
+  concept: input_validation
+  since: "0.1.0"
