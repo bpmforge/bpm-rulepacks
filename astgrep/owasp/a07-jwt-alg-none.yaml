@@ -1,0 +1,22 @@
+id: bpm-owasp-a07-jwt-alg-none
+language: typescript
+severity: warning
+rule:
+  pattern:
+    context: '({ algorithms: ["none"] })'
+    selector: pair
+message: >
+  JWT verification explicitly allows the "none" algorithm (OWASP A07:2021,
+  CWE-347: Improper Verification of Cryptographic Signature). A token with
+  `alg: "none"` and no signature will pass verification, letting an attacker
+  forge arbitrary claims (including admin/role escalation). Pin `algorithms`
+  to the single expected algorithm (e.g. ["HS256"] or ["RS256"]) and never
+  include "none".
+metadata:
+  license: proprietary
+  provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A07"
+  cwe: [347]
+  owasp: "A07:2021"
+  confidence: high
+  concept: tokens_jwt
+  since: "0.1.0"

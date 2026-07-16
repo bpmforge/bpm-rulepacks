@@ -118,3 +118,43 @@ file itself, just a label choice for whoever expands it next. `cwe: [1078]`
 neither has a more specific CWE anchor; this is a style/quality signal, not
 a security one, so the CWE field is illustrative rather than load-bearing
 for these two rules.
+
+## OWASP coverage — A06-A10 (W1-05)
+
+Ported from `~/Code/bpm-opencode-experts/agents/security/OWASP_METHODOLOGY.md`
+Passes 6-10. This batch is the CWE-dataflow-heavy back half of the Top 10 —
+A06 is largely CVE-feed-driven (already covered elsewhere in the pipeline by
+osv-scanner/npm-audit + the Dependency Auditor agent, not re-implemented as
+static rules here), and A07-A10 lean on taint tracking, so opengrep's
+`mode: taint` is used wherever the vulnerability is a source→sink dataflow
+shape rather than a single-node structural pattern.
+
+| Rule | Category | Engine | CWE | Notes |
+|------|----------|--------|-----|-------|
+| a06-known-vulnerable-package | A06 | ast-grep (json) | 1104 | Flags specific deprecated/CVE-heavy packages (`request`, `node-serialize`, `serialize-javascript`) by name in a manifest. Broader "any outdated version" detection needs a live CVE feed — that's the Dependency Auditor's job (osv-scanner/grype), not a pattern rule; kept to the narrow, always-true case. |
+| a07-jwt-alg-none | A07 | ast-grep (ts) | 347 | `algorithms: ["none"]` on JWT verify — signature bypass. |
+| a07-hardcoded-jwt-secret | A07 | ast-grep (ts) | 798 | `jwt.sign(payload, "literal")` — constrains the secret metavar to `kind: string` so `process.env.X` doesn't match. |
+| a07-plaintext-password-compare | A07 | ast-grep (ts) | 256 | Direct `===`/`==` on `.password` instead of a constant-time hash compare. |
+| a07-cookie-insecure-flag | A07 | ast-grep (ts) | 614 | Explicit `secure: false` on a session cookie. |
+| a08-pickle-loads | A08 | ast-grep (py) | 502 | `pickle.loads()` — arbitrary object deserialization. |
+| a08-yaml-unsafe-load | A08 | ast-grep (py) | 502 | `yaml.load()` with no `Loader=` arg (the 1-arg call shape only — `yaml.safe_load()` and the 2-arg `Loader=` form don't match). |
+| a08-unpinned-ci-action | A08 | ast-grep (yaml) | 829 | GitHub Actions `uses: owner/repo@vN` floating tag vs. a pinned 40-char SHA. Metavariable regex constraint on the whole scalar (`@v?[0-9]+(\.[0-9]+)*$`) — YAML values are single leaf tokens so the ref can't be split into separate metavars, only tested as a whole. |
+| a09-sensitive-data-logged | A09 | ast-grep (ts) | 532 | `logger.*`/`console.*` call with a nested `password`/`token`/`secret` object key anywhere in its arguments (`has: {stopBy: end}` over the call, not just the first arg). |
+| a09-log-injection | A09 | opengrep (taint) | 117 | `req.body/query/params` → `logger.*`/`console.log` with no sanitization. |
+| a10-ssrf-user-controlled-url | A10 | opengrep (taint) | 918 | `req.body/query` → `axios`/`fetch`/`http.get`. DNS-rebinding/redirect-chain bypass of an allowlist is a runtime/dataflow judgment beyond a single taint rule and stays LLM-tier. |
+
+Deferred to LLM-tier / other-tool-tier (multi-file, live-data, or judgment-based
+— not force-fit into a rule that would either miss the signal or false-positive):
+missing rate-limiting/CAPTCHA on login (A07 — needs app-wide config context),
+missing MFA (A07 — a feature-availability fact, not a code shape), CVE
+severity triage against actual usage (A06 — needs the OSV/npm-audit feed,
+already the Dependency Auditor's job), missing auth-event logging / absent
+monitoring hooks (A09 — an absence-of-code judgment, not a pattern match),
+SSRF allowlist-bypass via DNS rebinding or redirect chains (A10 — needs
+post-resolution runtime state, not static text).
+
+Concept-ontology note (continued): `a06-known-vulnerable-package` uses
+`concept: dependency_supply_chain`, a new key not yet in
+`concept-ontology-seed.yaml` (no existing key fits "package manifest /
+supply-chain" cleanly) — same "flag for whoever expands the ontology next"
+situation as `code_quality` above, not an edit to the ontology file itself.

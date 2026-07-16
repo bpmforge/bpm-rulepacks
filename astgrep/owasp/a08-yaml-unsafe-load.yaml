@@ -1,0 +1,20 @@
+id: bpm-owasp-a08-yaml-unsafe-load
+language: python
+severity: warning
+rule:
+  pattern: yaml.load($DATA)
+message: >
+  yaml.load() with no explicit Loader defaults to the full loader in
+  older PyYAML (and even where safe-by-default, the intent to allow
+  arbitrary-tag construction is unclear) (OWASP A08:2021, CWE-502:
+  Deserialization of Untrusted Data). A crafted YAML document can
+  instantiate arbitrary Python objects and execute code on load. Use
+  yaml.safe_load() or pass Loader=yaml.SafeLoader explicitly.
+metadata:
+  license: proprietary
+  provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A08"
+  cwe: [502]
+  owasp: "A08:2021"
+  confidence: high
+  concept: deserialization
+  since: "0.1.0"

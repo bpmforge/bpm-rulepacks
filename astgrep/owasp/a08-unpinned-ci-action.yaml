@@ -1,0 +1,24 @@
+id: bpm-owasp-a08-unpinned-ci-action
+language: yaml
+severity: warning
+rule:
+  pattern: 'uses: $VAL'
+constraints:
+  VAL:
+    regex: '@v?[0-9]+(\.[0-9]+)*$'
+message: >
+  A GitHub Actions step references a third-party action by a floating tag
+  (e.g. "@v4") instead of a pinned commit SHA (OWASP A08:2021, CWE-829:
+  Inclusion of Functionality from Untrusted Control Sphere — a software
+  supply-chain integrity gap). A tag can be moved by the action owner (or
+  an attacker who compromises their account) to point at malicious code
+  that your next CI run will execute with repo/secrets access. Pin to a
+  full 40-character commit SHA and update deliberately.
+metadata:
+  license: proprietary
+  provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A08"
+  cwe: [829]
+  owasp: "A08:2021"
+  confidence: medium
+  concept: infra_iac
+  since: "0.1.0"

@@ -1,0 +1,20 @@
+id: bpm-owasp-a08-pickle-loads
+language: python
+severity: warning
+rule:
+  pattern: pickle.loads($DATA)
+message: >
+  pickle.loads() deserializes arbitrary Python objects and executes any
+  __reduce__ payload embedded in the input (OWASP A08:2021, CWE-502:
+  Deserialization of Untrusted Data). If $DATA can be influenced by a
+  client (cookie, cache entry, message queue payload), this is remote
+  code execution. Use a data-only format (json.loads) or sign/HMAC the
+  pickled blob and verify before loading.
+metadata:
+  license: proprietary
+  provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A08"
+  cwe: [502]
+  owasp: "A08:2021"
+  confidence: high
+  concept: deserialization
+  since: "0.1.0"
