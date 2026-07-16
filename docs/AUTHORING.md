@@ -158,3 +158,28 @@ Concept-ontology note (continued): `a06-known-vulnerable-package` uses
 `concept-ontology-seed.yaml` (no existing key fits "package manifest /
 supply-chain" cleanly) — same "flag for whoever expands the ontology next"
 situation as `code_quality` above, not an edit to the ontology file itself.
+
+## slop-scorecard's 6 checks → AST rules (W1-06)
+
+Ported from `~/Code/slop-scorecard/src/checks/*.ts`, the free CLI's 6
+regex/heuristic checks. Only one of the six is a single-file structural/text
+shape; the other five each depend on state outside the one file being
+scanned (a second file's declared contents, the rest of the tree, or a live
+network response) — Opengrep OSS and ast-grep have no cross-file join or
+network-call capability (that class of feature is Semgrep Pro / proprietary,
+barred by this repo's licensing guardrail), so force-fitting them into a
+single-file rule would either miss the real signal or produce an `.ok`
+fixture that can only stay clean by testing something else entirely.
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| secrets | ported (opengrep) | `packs/secrets/stripe-secret-key.yaml`, `github-token.yaml`, `slack-token.yaml`, `pem-private-key.yaml` — the 4 of 6 `secrets.ts` patterns not already covered by `packs/secrets/hardcoded-credentials.yaml` (AWS key ID, generic secret-shaped assignment). Opengrep `language: generic` + `pattern-regex`, not ast-grep — ast-grep requires a per-language tree-sitter grammar and has no `generic` text-matching language, so these stay in the existing opengrep-engine pack (matches the AWS/generic rules already there) rather than moving to `astgrep/`. |
+| phantom-imports | **tool-tier, deferred** | The structural half (extracting an import specifier from a file) is trivial AST work, but the check's actual signal — "is this package name *absent* from `package.json` dependencies/devDependencies" — is a set-difference against a second file's content. Neither engine can read a second file from within a rule. Unlike R-03/R-09 (ANTI_SLOP, W1-01) there's no always-true structural core to narrow to: every import statement is either phantom or not depending entirely on the sibling `package.json`, so no fixed pattern can discriminate `.vuln` from `.ok` without that join. Stays exactly where `slop-scorecard` already runs it (a small Node script comparing import specifiers to `package.json`). |
+| dead-exports | **tool-tier, deferred** | Cross-file by definition — "is this exported name referenced anywhere else in the tree" requires scanning every other file, the same shape as ANTI_SLOP R-07 (single-use helper functions, W1-01). A per-file ast-grep rule has no cross-file aggregation. |
+| duplication | **tool-tier, deferred** | Cross-file/cross-block token-window comparison (jscpd/PMD-CPD class), the same shape as ANTI_SLOP R-19 (W1-02) and already covered elsewhere in the pipeline by the Duplication Detector agent's jscpd run. Not force-fit into a single-file pattern. |
+| hallucinatedDeps | **tool-tier, deferred** | Requires a live HTTP call to `registry.npmjs.org` per dependency to check for a 404. No static rule can make a network call; this is inherently a runtime/CLI check, not a pattern match. |
+| dependencyRisk | **tool-tier, deferred** | Requires a live HTTP call to `api.osv.dev` per pinned dependency plus comparison against `dist-tags.latest`. Same network-dependency reasoning as `hallucinatedDeps`. |
+
+Concept-ontology note (continued): the 4 new secret rules reuse
+`concept: secrets_config`, the existing key `bpm-secret-aws-access-key` /
+`bpm-secret-generic-assignment` already use — no new key needed.
