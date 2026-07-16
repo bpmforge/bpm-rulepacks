@@ -55,3 +55,34 @@ metadata:
 ## Licensing discipline
 
 Never copy a Semgrep-registry rule or any AGPL rule into this repo. Rules here are authored from primary sources (CWE text, OWASP cheat sheets, our own methodology) or ported from our own MIT/proprietary code. When in doubt, author from scratch against the CWE definition.
+
+## ANTI_SLOP coverage — R-01..R-10 (W1-01)
+
+Ported from `~/Code/bpm-opencode-experts/agents/shared/ANTI_SLOP_RULES.md`. Rules
+needing cross-file counting, dataflow independence proof, or architectural-layer
+judgment are **LLM-tier** — not force-fit into a structural/regex pattern that
+would either miss the real signal or false-positive on legitimate code. They stay
+in the LLM-triage tier of the pipeline (Tier-2/3), not the deterministic Tier-0/1
+rule packs.
+
+| Rule | Title | Status | Notes |
+|------|-------|--------|-------|
+| R-01 | Catch-all swallowing | ported (ast-grep) | `astgrep/slop/empty-catch.yaml` |
+| R-02 | try/catch inside tight loops | ported (ast-grep) | `astgrep/slop/try-catch-in-loop.yaml` |
+| R-03 | Exception-driven control flow | ported (ast-grep) | `astgrep/slop/try-parse-fallback.yaml` — narrowed to the canonical `JSON.parse` shape; the general "exceptions for expected states" judgment is broader than one pattern can cover |
+| R-04 | Serial awaits blocking parallelism | **LLM-tier** | Detecting whether consecutive `await`s are independent requires dataflow (does statement N's argument reference statement N-1's result?) — not expressible as a single structural pattern without false-flagging genuinely dependent chains |
+| R-05 | Single-implementation interfaces/factories | **LLM-tier** | Requires counting implementations of an interface *across the whole codebase*; a per-file AST rule has no cross-file aggregation |
+| R-06 | Delegation-only wrapper classes | ported (ast-grep) | `astgrep/slop/delegation-only-wrapper.yaml` — narrowed to the canonical zero-arg-constructor/zero-arg-method forwarding shape |
+| R-07 | Single-use helper functions | **LLM-tier** | Requires counting call sites for a function across the codebase — a frequency property, not a structural shape |
+| R-08 | Repository pattern on simple CRUD | **LLM-tier** | Requires recognizing a 3-layer architecture (repo→DAO→service) wrapping trivial ORM calls — an architectural judgment spanning multiple files/classes, not a single-file pattern |
+| R-09 | Null checks on types you control | ported (ast-grep) | `astgrep/slop/redundant-null-undefined-check.yaml` — narrowed to the mechanically-redundant compound form `x === null \|\| x === undefined` (always equivalent to `x == null`); the fuller "type you control vs. boundary" judgment needs type-system context |
+| R-10 | Fallback values that hide failures | ported (ast-grep) | `astgrep/slop/fallback-hides-failure.yaml` — narrowed to bare `catch { return []/""/null }` |
+
+Concept-ontology note: the seed ontology (`concept-ontology-seed.yaml`) is
+security/CWE-scoped (20 keys) and has no general code-quality/architecture
+bucket. R-02/R-03/R-10 map to `logging_audit` (closest existing concept —
+error-handling shape); R-09 maps to `input_validation` (null-checking as a
+lightweight validation form). R-06 (delegation-only wrapper) has no reasonable
+existing-key fit, so its rule metadata uses `concept: code_quality` — a new key
+not yet defined in the ontology seed. Flagging here for whoever next expands the
+ontology; it's a metadata label choice, not an edit to the ontology file itself.
