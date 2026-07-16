@@ -1,5 +1,83 @@
 {
-  "_comment": "Pinned labeled vulnerable-code corpora for Tier-2 rule scoring. Referenced by SHA, NEVER vendored (some are GPL/AGPL; this repo is proprietary). Every entry REQUIRES an SPDX `license` and `vendor:false`. Populate from docs/CORPUS.md once the license-verification research lands — do NOT add a corpus without a confirmed license. Fields: name, url, sha, license (SPDX), languages[], labels (how ground truth is derived → corpus/labels/<name>.json via an adapter), notes.",
+  "_comment": "Pinned labeled vulnerable-code corpora for Tier-2 rule scoring. Referenced by SHA (git) or version+sha256 (zip), NEVER vendored — GPL entries are USE-only. Every entry REQUIRES an SPDX `license` and `vendor:false`. License verdicts + exclusions: docs/CORPUS.md. Each needs an adapter (corpus/adapters/<name>.mjs) emitting corpus/labels/<name>.json before it can be scored.",
   "schemaVersion": 1,
-  "corpora": []
+  "corpora": [
+    {
+      "name": "owasp-benchmark-java",
+      "type": "git",
+      "url": "https://github.com/OWASP-Benchmark/BenchmarkJava.git",
+      "sha": "79b9bd6177e07991a9c11dc19e457c840e229931",
+      "license": "GPL-2.0",
+      "vendor": false,
+      "languages": ["java"],
+      "labels": "expectedresults-1.2.csv → adapters/owasp-benchmark-java.mjs",
+      "notes": "2741 cases incl. true-negatives (FP-rate signal). USE only, never vendor."
+    },
+    {
+      "name": "owasp-benchmark-python",
+      "type": "git",
+      "url": "https://github.com/OWASP-Benchmark/BenchmarkPython.git",
+      "sha": "f1291485808b66e20ddb6b01b10dc71b3df8c8ba",
+      "license": "GPL-3.0",
+      "vendor": false,
+      "languages": ["python"],
+      "labels": "expectedresults CSV → adapters/owasp-benchmark-python.mjs",
+      "notes": "USE only, never vendor."
+    },
+    {
+      "name": "ossf-cve-benchmark",
+      "type": "git",
+      "url": "https://github.com/ossf-cve-benchmark/ossf-cve-benchmark.git",
+      "sha": "91c59fd54b2b768c0f310bb0027d2ac59cdf74d4",
+      "license": "MIT",
+      "vendor": false,
+      "languages": ["javascript", "typescript"],
+      "labels": "per-CVE file/line metadata → adapters/ossf-cve-benchmark.mjs",
+      "notes": "Real-world JS/TS CVEs. Dormant but complete. Code snapshots carry upstream licenses — do not vendor."
+    },
+    {
+      "name": "cwe-bench-java",
+      "type": "git",
+      "url": "https://github.com/iris-sast/cwe-bench-java.git",
+      "sha": "afe0ebd0adc237abb46255f9cd479b1d71819136",
+      "license": "MIT",
+      "vendor": false,
+      "languages": ["java"],
+      "labels": "fix_info.csv (method-level) → adapters/cwe-bench-java.mjs",
+      "notes": "Real Java CVEs. Upstream project snapshots — do not vendor."
+    },
+    {
+      "name": "juice-shop",
+      "type": "git",
+      "url": "https://github.com/juice-shop/juice-shop.git",
+      "sha": "33518f5a0911e25d9df747b1e70fb7af279a755c",
+      "license": "MIT",
+      "vendor": false,
+      "languages": ["javascript", "typescript"],
+      "labels": "vuln-code-snippet markers + challenges.yml → adapters/juice-shop.mjs",
+      "notes": "Whole-app integration target. MIT (vendorable in principle; we still reference-only)."
+    },
+    {
+      "name": "dsvw",
+      "type": "git",
+      "url": "https://github.com/stamparm/DSVW.git",
+      "sha": "7d40f4b7939c901610ed9b85724552d60e7d63fa",
+      "license": "Unlicense",
+      "vendor": false,
+      "languages": ["python"],
+      "labels": "hand-labeled (single ~100-line file, ~25 vulns) → labels/dsvw.json",
+      "notes": "Public domain. Smallest corpus — fast smoke test."
+    },
+    {
+      "name": "juliet-cpp",
+      "type": "zip",
+      "url": "https://samate.nist.gov/SARD/downloads/test-suites/2022-06-14-juliet-c-cplusplus-v1-3.zip",
+      "sha256": "PENDING-first-download",
+      "license": "CC0-1.0",
+      "vendor": true,
+      "languages": ["c", "cpp"],
+      "labels": "manifest.xml (file+line+CWE) → adapters/juliet.mjs",
+      "notes": "Public domain backbone. sha256 to be pinned on first fetch (set PIN_SHA256=1). ~146MB."
+    }
+  ]
 }

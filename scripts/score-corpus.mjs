@@ -34,8 +34,8 @@ if (!engine) skip('no SAST engine (opengrep/semgrep) installed');
 const corpusPath = join(CORPUS_DIR, name);
 if (!existsSync(corpusPath)) skip(`corpus '${name}' not fetched — run: node corpus/fetch.mjs ${name}`);
 
-const labelsPath = join(ROOT, 'corpus', 'labels', `${name}.json`);
-if (!existsSync(labelsPath)) skip(`no labels for '${name}' at corpus/labels/${name}.json (write an adapter first)`);
+const labelsPath = valOf('--labels') || join(ROOT, 'corpus', 'labels', `${name}.json`);
+if (!existsSync(labelsPath)) skip(`no labels for '${name}' at ${labelsPath} (write an adapter first)`);
 
 function have(bin) { try { execFileSync('sh', ['-c', `command -v ${bin}`], { stdio: 'ignore' }); return true; } catch { return false; } }
 
@@ -129,7 +129,12 @@ function arr(x) { return (Array.isArray(x) ? x : x == null ? [] : [x]).map((n) =
 function cweOfRuleFilter() { return true; }
 function extractCwe(res, ruleMeta) {
   const tags = ruleMeta?.properties?.tags || [];
-  const fromTags = tags.filter((t) => /cwe/i.test(t)).map((t) => t.replace(/^CWE-?/i, ''));
+  // Our rules emit `metadata.cwe: [798]`, which semgrep/opengrep flatten into the
+  // SARIF tag list as either "CWE-798" or a bare "798" — accept both, plus any
+  // explicit CWE reference in the message. A bare 1-4 digit tag is a CWE number.
+  const fromTags = tags
+    .filter((t) => /^cwe-?\d+$/i.test(t) || /^\d{1,4}$/.test(t))
+    .map((t) => t.replace(/^CWE-?/i, ''));
   const fromMsg = (res.message?.text || '').match(/CWE-?(\d+)/gi)?.map((m) => m.replace(/^CWE-?/i, '')) || [];
   return [...new Set([...fromTags, ...fromMsg].map((s) => String(s).replace(/\D/g, '')).filter(Boolean))];
 }

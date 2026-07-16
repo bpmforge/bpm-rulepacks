@@ -9,7 +9,9 @@ Two independent things get tested, with two different harnesses. Don't conflate 
 | Speed | Milliseconds; runs on every commit / in CI | Minutes; runs nightly or pre-release, not per-commit |
 | Gate | **Hard** — a rule with a failing fixture cannot merge | **Regression** — a rule that drops precision/recall vs the last baseline is flagged |
 | Ground truth | You wrote it (you know the answer) | Published labels (CWE-tagged lines/files, expected-results CSVs) |
-| Status | ✅ built (`scripts/test-rules.mjs`) | 🔧 this doc + `scripts/score-corpus.mjs` |
+| Status | ✅ built (`scripts/test-rules.mjs`) | ✅ built + proven (`scripts/score-corpus.mjs`; hermetic `score-selftest.mjs` asserts P=R=1.0 on a controlled case) |
+
+**Verified end-to-end (2026-07-16):** the scorer was run against a labeled case where our real `bpm-secret-aws-access-key` rule (CWE-798) should fire on a hardcoded key and stay silent on an env-var line → **TP=1, FP=0, FN=0, precision=1.000, recall=1.000**. That path (engine SARIF → CWE-match to label → P/R math) is now a hermetic self-test in `npm run check`. What remains is scale: pin + adapt the real corpora (`corpus.lock`, `docs/CORPUS.md`) and grow the ruleset so the numbers mean something on thousands of cases.
 
 Tier 1 proves a rule *works*. Tier 2 proves it *doesn't cry wolf* on real code — the thing that actually kills a paid audit's credibility.
 
