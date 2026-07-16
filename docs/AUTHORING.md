@@ -4,11 +4,22 @@
 
 For rule `bpm-<pack>-<slug>`:
 
-1. Write `fixtures/<pack>/<slug>.vuln.<ext>` — code the rule MUST flag.
-2. Write `fixtures/<pack>/<slug>.ok.<ext>` — near-identical safe code the rule MUST NOT flag (guards against false positives).
-3. Add the rule to `packs/<pack>/<file>.yaml` (Opengrep) or `astgrep/<pack>/<slug>.yaml` (ast-grep).
-4. Add the case to `CASES` in `scripts/test-rules.mjs`.
-5. `npm run check` — provenance validator + fixture runner must pass.
+1. Write the rule: `packs/<pack>/<file>.yaml` (Opengrep) or `astgrep/<pack>/<slug>.yaml` (ast-grep).
+2. Write `fixtures/<pack>/<slug>.vuln.<ext>` — code the rule MUST flag.
+3. Write `fixtures/<pack>/<slug>.ok.<ext>` — near-identical safe code the rule MUST NOT flag (guards against false positives).
+4. `npm run check` — provenance validator + fixture runner must pass.
+
+That's it — there is no shared case list to register. **No CASES array, no edit to `scripts/test-rules.mjs`.**
+
+## How discovery works
+
+`scripts/test-rules.mjs` scans `fixtures/<pack>/` for every `<slug>.vuln.<ext>` / `<slug>.ok.<ext>` pair and resolves the rule by convention:
+
+1. If `astgrep/<pack>/<slug>.yaml` exists, run it via `ast-grep --rule`.
+2. Otherwise, if `packs/<pack>/` exists, run it via `opengrep --config` (the whole pack directory).
+3. Otherwise the fixture pair fails with "no rule found" — fixtures always need a matching rule.
+
+Because resolution is filename-convention based, adding a rule + its fixtures is a **self-contained change**: no other file in the repo needs to be touched. This is what lets multiple rule tickets land in parallel without colliding on `scripts/test-rules.mjs` — the old hand-maintained `CASES` array was a shared-file bottleneck that serialized every rule ticket through one merge queue.
 
 RED first: confirm the `.vuln` fixture fires and the `.ok` fixture stays clean. A rule with no `.ok` fixture is not done — that's how false positives ship.
 
