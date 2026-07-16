@@ -1,0 +1,13 @@
+{
+  "name": "@bpmforge/rulepacks",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proprietary Opengrep + ast-grep static-analysis rule packs for the bpmforge fleet",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/test-rules.mjs",
+    "validate": "node scripts/validate-provenance.mjs",
+    "check": "npm run validate && npm run test"
+  },
+  "license": "SEE LICENSE IN LICENSE"
+}

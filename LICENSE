@@ -1,0 +1,24 @@
+Copyright (c) 2026 bpmforge. All rights reserved.
+
+PROPRIETARY AND CONFIDENTIAL.
+
+This repository and its contents (the "Rule Packs") are the proprietary
+property of bpmforge. The Rule Packs are licensed, not sold.
+
+No part of the Rule Packs may be copied, distributed, sublicensed, made
+available to third parties, or used to provide a service to third parties,
+except:
+
+  (a) by bpmforge and its authorized products (including CodeReckon and
+      RepoPulse) as part of delivering audits and scanning services to
+      bpmforge customers; and
+
+  (b) individual rule files explicitly marked `license: public-teaser` in
+      their metadata, which are additionally made available under the MIT
+      License as distributed within the public `slop-scorecard` project.
+
+The Opengrep and ast-grep engines used to execute these rules are separate
+works under their own licenses (LGPL-2.1 and MIT respectively) and are not
+covered by this license.
+
+THE RULE PACKS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

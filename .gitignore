@@ -1,0 +1,4 @@
+node_modules/
+*.sarif
+out.sarif
+.DS_Store
