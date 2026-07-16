@@ -1,0 +1,774 @@
+[
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 2,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 3,
+    "cwe": [
+      "640"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 14,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 15,
+    "cwe": [
+      "640"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 18,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 19,
+    "cwe": [
+      "640"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 20,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 21,
+    "cwe": [
+      "640"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 24,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/securityQuestions.yml",
+    "line": 25,
+    "cwe": [
+      "640"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/web3-snippets/ETHWalletBank.sol",
+    "line": 32,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/web3-snippets/ETHWalletBank.sol",
+    "line": 33,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/web3-snippets/ETHWalletBank.sol",
+    "line": 34,
+    "cwe": [
+      "841"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+    "line": 15,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+    "line": 25,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+    "line": 26,
+    "cwe": [
+      "20"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/web3-snippets/JuiceShopSBT.sol",
+    "line": 18,
+    "cwe": [
+      "200"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "data/static/web3-snippets/JuiceShopSBT.sol",
+    "line": 27,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/web3-snippets/JuiceShopSBT.sol",
+    "line": 33,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "data/static/web3-snippets/JuiceShopSBT.sol",
+    "line": 37,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 78,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 79,
+    "cwe": [
+      "284"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 80,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 81,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 82,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 185,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 186,
+    "cwe": [
+      "710"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 187,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 188,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 238,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 239,
+    "cwe": [
+      "284"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 240,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 241,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 260,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 261,
+    "cwe": [
+      "656"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 262,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 263,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 293,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 294,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 295,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 296,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 297,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 298,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 300,
+    "cwe": [
+      "656"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 301,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 302,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 303,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 304,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 305,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 307,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 308,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 309,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 310,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 311,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 312,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 313,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 315,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 316,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 317,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 318,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 319,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 320,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/app.routing.ts",
+    "line": 321,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 68,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 108,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 109,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 110,
+    "cwe": [
+      "79"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 111,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 112,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 143,
+    "cwe": [
+      "79"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "frontend/src/app/search-result/search-result.component.ts",
+    "line": 143,
+    "cwe": [
+      "79"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "lib/insecurity.ts",
+    "line": 124,
+    "cwe": [
+      "601"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "lib/insecurity.ts",
+    "line": 125,
+    "cwe": [
+      "601"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "lib/insecurity.ts",
+    "line": 126,
+    "cwe": [
+      "601"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "lib/insecurity.ts",
+    "line": 136,
+    "cwe": [
+      "601"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "models/user.ts",
+    "line": 76,
+    "cwe": [
+      "521"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 82,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 177,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 177,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 179,
+    "cwe": [
+      "1427"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 179,
+    "cwe": [
+      "1427"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 184,
+    "cwe": [
+      "1427"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/chat.ts",
+    "line": 185,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/login.ts",
+    "line": 34,
+    "cwe": [
+      "89"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/login.ts",
+    "line": 34,
+    "cwe": [
+      "89"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/login.ts",
+    "line": 34,
+    "cwe": [
+      "89"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/login.ts",
+    "line": 35,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/login.ts",
+    "line": 35,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/login.ts",
+    "line": 35,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/search.ts",
+    "line": 23,
+    "cwe": [
+      "89"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/search.ts",
+    "line": 23,
+    "cwe": [
+      "89"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/updateProductReviews.ts",
+    "line": 16,
+    "cwe": [
+      "639"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/updateProductReviews.ts",
+    "line": 17,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "routes/updateProductReviews.ts",
+    "line": 18,
+    "cwe": [
+      "943"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/updateProductReviews.ts",
+    "line": 18,
+    "cwe": [
+      "639"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "routes/updateProductReviews.ts",
+    "line": 20,
+    "cwe": [
+      "943"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 268,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 269,
+    "cwe": [
+      "548"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 270,
+    "cwe": [
+      "548"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 271,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 280,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 281,
+    "cwe": [
+      "532"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 283,
+    "cwe": [
+      "532"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 346,
+    "cwe": [
+      "307"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 368,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 369,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 370,
+    "cwe": [
+      "862"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 510,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 511,
+    "cwe": [
+      "915"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 515,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 516,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 517,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 728,
+    "cwe": [],
+    "kind": "safe"
+  },
+  {
+    "file": "server.ts",
+    "line": 729,
+    "cwe": [
+      "200"
+    ],
+    "kind": "vuln"
+  },
+  {
+    "file": "server.ts",
+    "line": 741,
+    "cwe": [],
+    "kind": "safe"
+  }
+]
