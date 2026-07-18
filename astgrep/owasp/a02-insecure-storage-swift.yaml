@@ -1,0 +1,27 @@
+id: bpm-owasp-a02-insecure-storage-swift
+language: swift
+severity: warning
+rule:
+  pattern: '$DEFAULTS.set($VAL, forKey: $KEY)'
+constraints:
+  DEFAULTS:
+    regex: 'UserDefaults'
+  KEY:
+    regex: '(?i)"(.*(token|password|secret|apikey|api_key|credential|auth).*)"'
+message: >
+  A secret-shaped value (the storage key names a token/password/secret/
+  credential) is written to UserDefaults (OWASP A02:2021, CWE-312:
+  Cleartext Storage of Sensitive Information). UserDefaults is an
+  unencrypted plist on disk — readable by anything with filesystem access
+  to the app sandbox (a jailbroken device, a backup extraction, another
+  process in an App Group). Store credentials and tokens in the Keychain
+  instead (kSecClassGenericPassword with an appropriate kSecAttrAccessible
+  level), never in UserDefaults.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [312]
+  owasp: "A02:2021"
+  confidence: high
+  concept: secrets_config
+  since: "0.1.0"

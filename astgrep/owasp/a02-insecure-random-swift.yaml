@@ -1,0 +1,28 @@
+id: bpm-owasp-a02-insecure-random-swift
+language: swift
+severity: warning
+rule:
+  any:
+    - pattern: let $VAR = arc4random_uniform($N)
+    - pattern: let $VAR = arc4random()
+    - pattern: let $VAR = drand48()
+constraints:
+  VAR:
+    regex: '(?i)(token|password|secret|otp|session[_a-z]*id|apikey|api_key|nonce|csrf)'
+message: >
+  A variable whose name signals a security-sensitive value (token, secret,
+  session id, OTP, ...) is assigned from arc4random()/arc4random_uniform()/
+  drand48() (OWASP A02:2021, CWE-330: Use of Insufficiently Random Values).
+  These are non-cryptographic PRNGs intended for gameplay/simulation
+  randomness, not security tokens — their output is not designed to resist
+  prediction by an attacker who observes prior values. Use
+  SecRandomCopyBytes (or a CryptoKit SymmetricKey) for anything
+  security-sensitive.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [330]
+  owasp: "A02:2021"
+  confidence: medium
+  concept: cryptography
+  since: "0.1.0"

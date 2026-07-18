@@ -1,0 +1,26 @@
+id: bpm-owasp-a02-keychain-misconfig-swift
+language: swift
+severity: warning
+rule:
+  any:
+    - pattern: kSecAttrAccessibleAlways
+    - pattern: kSecAttrAccessibleAlwaysThisDeviceOnly
+message: >
+  A Keychain item is stored with kSecAttrAccessibleAlways or
+  kSecAttrAccessibleAlwaysThisDeviceOnly (OWASP A02:2021, CWE-522:
+  Insufficiently Protected Credentials). Both constants are deprecated
+  precisely because they let the item be read while the device is locked
+  (including from a backup restored to another device, for the non
+  -ThisDeviceOnly variant) — an attacker with physical access or a stolen
+  backup can extract the secret without the passcode. Use
+  kSecAttrAccessibleWhenUnlockedThisDeviceOnly (or
+  kSecAttrAccessibleWhenUnlocked if iCloud Keychain sync is required)
+  instead.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [522]
+  owasp: "A02:2021"
+  confidence: high
+  concept: secrets_config
+  since: "0.1.0"
