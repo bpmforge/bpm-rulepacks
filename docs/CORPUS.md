@@ -662,7 +662,18 @@ prove object lifetime):
   legitimately used for non-security randomness far more often than not.
 - `mem-integer-overflow-malloc` (CWE-190): `malloc($A * $B)` /
   `realloc($P, $A * $B)` — an inline size-multiplication with no
-  overflow check. No OWASP Top 10 category fits a memory-safety CWE
+  overflow check. **Precision caveat, disclosed rather than hidden:**
+  the Juliet re-baseline below shows this rule firing 25,021 times
+  against a single corpus with zero confirmed true positives at that
+  bound — it matches the extremely common, usually-safe
+  `malloc(sizeof(T) * n)` idiom just as readily as a genuinely
+  attacker-influenced multiplication, since a single-file structural
+  pattern cannot tell "n is a small const-bounded loop counter" from
+  "n comes off the network." `confidence: medium` (not `high`) already
+  reflects this; treat this rule as a lead worth triaging, not a
+  ground-truth positive, until a human or the Tier-2 triage step
+  confirms operand provenance. No OWASP Top 10 category fits a
+  memory-safety CWE
   (OWASP's Top 10 is web-application-shaped, not a C/C++ weakness
   taxonomy), so this rule and `mem-unsafe-string-functions` both omit the
   optional `owasp:` metadata field rather than force an inaccurate
@@ -759,20 +770,46 @@ tolerance in the sampled files, plausible given Juliet's per-CWE
 flow-variant templates route the multiplication through intermediate
 variables in several variants — the same "source list doesn't cover every
 flow variant" limitation the `owasp-benchmark-java` notes above already
-describe. The other five
-rules (`a02-weak-crypto-c`, `a02-insecure-random-c`, `a03-format-string-c`,
+describe. The other five rules
+(`a02-weak-crypto-c`, `a02-insecure-random-c`, `a03-format-string-c`,
 `a03-command-injection-c`, `a03-path-traversal-c`) scored zero matches
-against this corpus for the structural reasons above: CWE-330
-(insecure random) and CWE-22 (path traversal) numbers don't even exist as
-Juliet C/C++ folders — Juliet uses CWE338 (Weak PRNG) and CWE23/CWE36
-(Relative/Absolute Path Traversal) instead, so the label set has zero
-entries tagged 330 or 22 to score against regardless of rule quality
-(confirmed by inspecting the labels file directly: `{"134":25,"190":25,
-"242":18,"327":25,"328":25}` — no 78/22/330/120/787 keys at all in the
-25-per-CWE-folder bounded sample, and CWE78's own folder exists but its
-labeled sample happens to only include the macro-wrapped flow variant
-described above). This is the same class of honest, corpus-shape-driven
-gap the `owasp-benchmark-java` and Go/Swift/Kotlin notes above already
+against this corpus, for three *different* verified reasons, not one
+blanket cause:
+
+- **CWE-330 (insecure random) and CWE-22 (path traversal) don't exist as
+  Juliet C/C++ CWE numbers at all** — Juliet uses CWE338 (Weak PRNG) and
+  CWE23/CWE36 (Relative/Absolute Path Traversal) instead, so the label
+  set has zero entries tagged 330 or 22 to score against regardless of
+  rule quality (confirmed by inspecting the labels file directly:
+  `{"134":25,"190":25,"242":18,"327":25,"328":25}` — no 78/22/330/120/787
+  keys at all in the 25-per-CWE-folder bounded sample).
+- **CWE-78 (command injection)** has a real, labeled folder (7,813
+  files) but its sampled entries happen to be the macro-wrapped,
+  pointer-offset flow variant already described above.
+- **CWE-134 (format string) and CWE-327/328 (weak hash/cipher) also have
+  real labeled folders, and neither is a macro-naming or missing-CWE
+  issue — each is a genuine sink/API mismatch**, confirmed by reading a
+  sampled file from each folder directly rather than assumed: Juliet's
+  C/C++ CWE134 samples route the tainted value through the *variadic*
+  sink family (`vfprintf`/`vfwprintf`/`vsnprintf`), not the fixed-arity
+  `printf`/`fprintf`/`syslog` this rule's `pattern-sinks` list covers,
+  and several flow variants pass the value across a C++ reference
+  between two separate source files — beyond opengrep's intrafile taint
+  scope even if the sink matched. Juliet's C/C++ CWE327/CWE328 samples
+  use the **Windows CryptoAPI** (`CryptAcquireContext`/`CryptCreateHash`/
+  `CryptDeriveKey` with `CALG_MD5`/`CALG_DES`/`CALG_RC5`), not the
+  OpenSSL EVP/legacy-MD5 API this rule targets — a different crypto
+  library entirely, not a narrower pattern within the same one. Widening
+  `a03-format-string-c` to the `v*printf` family and `a02-weak-crypto-c`
+  to CryptoAPI's `CALG_*` constants would close these two specific gaps
+  without overfitting (both are real, general C/Windows idioms, not
+  Juliet-specific naming) — flagged here as a concrete, scoped follow-on
+  rather than done in this ticket, since OpenSSL/POSIX (not Win32
+  CryptoAPI or the varargs printf family) was this ticket's authored
+  scope.
+
+This is the same class of honest, corpus-shape-driven gap the
+`owasp-benchmark-java` and Go/Swift/Kotlin notes above already
 document — not a defect in the rules, which are fixture-proven against
 real (non-macro-wrapped) C/C++ idioms, and not chased further per the
 overfitting guard.
