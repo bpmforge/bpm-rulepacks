@@ -1,0 +1,29 @@
+id: bpm-owasp-a02-weak-tls-csharp
+language: cs
+severity: warning
+rule:
+  any:
+    - pattern:
+        context: '$X.ServerCertificateCustomValidationCallback = ($$$ARGS) => true;'
+        selector: assignment_expression
+    - pattern:
+        context: 'ServicePointManager.ServerCertificateValidationCallback = ($$$ARGS) => true;'
+        selector: assignment_expression
+message: >
+  A server-certificate validation callback is set to unconditionally
+  return true (OWASP A02:2021, CWE-295: Improper Certificate Validation).
+  This disables TLS certificate validation entirely (chain trust, expiry,
+  hostname, revocation), letting any attacker positioned on the network
+  present any certificate — including a self-signed one — and
+  man-in-the-middle the connection undetected. Remove the callback and
+  let the default validation run, or, if a custom check is genuinely
+  required, evaluate `errors == SslPolicyErrors.None` (or a pinned
+  certificate/public-key comparison) instead of returning a constant.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [295]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"
