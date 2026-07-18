@@ -1,0 +1,9 @@
+{
+  "tp": 0,
+  "fp": 0,
+  "fn": 1415,
+  "precision": null,
+  "recall": 0,
+  "f1": null,
+  "perRule": {}
+}
