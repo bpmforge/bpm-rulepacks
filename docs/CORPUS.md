@@ -59,6 +59,46 @@ authors Java-targeted opengrep/ast-grep rules (out of this ticket's
 `write_scope`, which is adapter + labels + baseline only — rules are
 authored, tested, and scored in separate tickets by design).
 
+### juliet-cpp (W2-04, 2026-07-18)
+
+Zip-fetch path proven end-to-end on the largest corpus in the fleet — and
+the only one whose license (CC0-1.0, public domain) would even permit
+vendoring, though we still don't (fetch-to-cache only, per the licensing
+rule above). `corpus.lock`'s original URL 404s (a dated NIST filename that
+no longer resolves); fixed to the live
+`2017-10-01-juliet-test-suite-for-c-cplusplus-v1-3.zip` build on
+`samate.nist.gov/SARD/test-suites/112` (HTTP 200 verified) and its sha256
+pinned via `PIN_SHA256=1 node corpus/fetch.mjs juliet-cpp`.
+`corpus/adapters/juliet.mjs` parses `C/manifest.xml` (file+line+CWE per
+flaw) into normalized labels, bounded to `JULIET_PER_CWE_LIMIT` (default
+25) flaw-labeled files per CWE folder for breadth across all 118 CWE
+categories rather than the full 65,263-flaw manifest — **2,680 vuln
+labels, all 118 CWE folders represented**, committed to
+`corpus/labels/juliet-cpp.json`. `npm run score -- juliet-cpp
+--update-baseline` ran both the opengrep and ast-grep rule sets.
+
+**Baseline: TP=0, FP=0, FN=2680 → precision=n/a, recall=0.000, F1=n/a.**
+
+Honest, expected zero — same shape as `owasp-benchmark-java`'s: every
+current rule targets typescript/javascript/python/ruby/tsx, none targets
+c/cpp, so 0 findings is exactly right. **This is verified traversal, not
+a silent-zero blind spot**: this is the fleet's first `type: zip` corpus
+(every prior one was a `git` clone), and the extracted tree is not a git
+repo — a landmine the `ossf-cve-benchmark` adapter already hit once
+(opengrep/semgrep default to `git ls-files`-tracked files only, and
+initially scanned 0 files for that corpus until its non-git payload was
+staged into a tracking clone). A direct `opengrep scan --config packs
+$CORPUS_DIR/juliet-cpp --verbose` confirms opengrep detects the missing
+git repo, falls back to "Running on all files instead," and reports
+**"Ran 10 rules on 106089 files: 0 findings"** — real traversal of the
+extracted zip, zero findings purely from the c/cpp language mismatch, not
+an unscanned tree. This baseline proves the zip-fetch + manifest.xml
+adapter + scorer machinery, not rule quality; it also only ever measures
+recall (the manifest marks defect lines but not the same-file `good()`
+safe variants, so no precision/FP-rate signal is available from this
+corpus without further source-marker parsing — see
+`corpus/labels/juliet-cpp.md`). Full adapter/verification notes there.
+
 ## Retrieval benchmark (Lodestone side)
 
 **CoIR** (Apache-2.0, ACL 2025) is the pick for code-search relevance — standardized qrels, MTEB/BEIR-compatible, covers CosQA/CodeSearchNet subsets. Lives with Lodestone's harness, not here. Avoid vendoring C-UDA data (CoSQA raw); consume it through CoIR.
