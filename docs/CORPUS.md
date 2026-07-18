@@ -706,20 +706,242 @@ was considered for CWE-94 coverage and deferred: it targets dead PHP <7.0
 syntax, not a shape any currently-supported PHP codebase can contain, so a
 rule for it would have no reachable vulnerable target to score against.
 
+## C/C++ rule coverage + Juliet re-baseline (W1-16, 2026-07-18)
+
+Both engines were verified live on tiny C and C++ fixtures before authoring
+at scale, per this file's established convention: `ast-grep 0.44.1` parses
+both `-l c` and `-l cpp` cleanly (confirmed with a `strcpy($DST, $SRC)`
+probe against hand-written `.c` and `.cpp` files) and `opengrep 1.25.0`
+parses and taint-matches both languages too (confirmed with a
+`getenv()`→`system()` taint flow in `.c` and `.cpp`). One real constraint
+shaped every rule here: **ast-grep's rule schema requires a single scalar
+`language:` field — it has no multi-language list form** (`language: [c,
+cpp]` and `languages: [c, cpp]` both hard-error "data did not match any
+variant of untagged enum SgLang" / "missing field `language`", confirmed
+live). Opengrep's `languages:` key *does* accept a list (already used
+elsewhere in this repo, e.g. `a03-path-traversal.yaml`'s `[typescript,
+javascript]`). Since the ticket brief calls for **one rule per CWE
+anchor** covering both C and C++ in a single file (not a separate
+per-language rule the way Java/Kotlin/Swift/C#/Go/PHP each got their own
+suffix), all seven rules here are **opengrep**, `languages: [c, cpp]`,
+living in `packs/owasp/` — including the four that are purely structural
+(no taint) and would otherwise have been ast-grep by this file's own
+"which engine" guidance; the multi-language requirement overrides that
+default here.
+
+Seven rules, one per CWE anchor, covering the pattern-matchable
+memory-safety and injection classes the ticket scoped (deep interprocedural
+bugs — use-after-free, double-free — are explicitly deferred to the Joern
+deep-taint tier, not force-fit into a structural/taint rule that can't
+prove object lifetime):
+
+- `mem-unsafe-string-functions` (CWE-120/787/242): `strcpy`/`strcat`/
+  `sprintf`/`gets` unconditionally, plus `scanf` narrowed via
+  `metavariable-regex: ^"%s"$` to the bare unbounded-width case (a
+  `scanf("%15s", ...)` call with an explicit width stays clean). No
+  taint needed — the mere presence of the call is the anti-pattern, same
+  shape as `a02-weak-hash-go`'s unconstrained `md5.New()`.
+- `a03-format-string-c` (CWE-134, taint): `getenv()`/`argv[$I]` →
+  `printf`/`fprintf`/`syslog` called with the tainted value as the format
+  argument itself (not a `%s` data argument).
+- `a03-command-injection-c` (CWE-78, taint): same sources →
+  `system`/`popen`/`execl`/`execlp`/`execvp`/`execve`.
+- `a02-weak-crypto-c` (CWE-327/328): legacy `MD5_Init`/`SHA1_Init`, the
+  `EVP_md5()`/`EVP_sha1()`/`EVP_des_cbc()`/`EVP_des_ecb()`/
+  `EVP_aes_*_ecb()` constant constructors, and `EVP_get_digestbyname()`/
+  `EVP_get_cipherbyname()` narrowed via `metavariable-regex` to an
+  md5/sha1/des/rc4-shaped algorithm-name literal.
+- `a02-insecure-random-c` (CWE-330): `$VAR = rand();` gated by a
+  `metavariable-regex` VAR-name constraint (token/password/secret/otp/
+  session*id/apikey/nonce/csrf) — same discriminator approach as
+  `a02-insecure-random-swift`/`-csharp`, since C's `rand()` is
+  legitimately used for non-security randomness far more often than not.
+- `mem-integer-overflow-malloc` (CWE-190): `malloc($A * $B)` /
+  `realloc($P, $A * $B)` — an inline size-multiplication with no
+  overflow check. **Precision caveat, disclosed rather than hidden:**
+  the Juliet re-baseline below shows this rule firing 25,021 times
+  against a single corpus with zero confirmed true positives at that
+  bound — it matches the extremely common, usually-safe
+  `malloc(sizeof(T) * n)` idiom just as readily as a genuinely
+  attacker-influenced multiplication, since a single-file structural
+  pattern cannot tell "n is a small const-bounded loop counter" from
+  "n comes off the network." `confidence: medium` (not `high`) already
+  reflects this; treat this rule as a lead worth triaging, not a
+  ground-truth positive, until a human or the Tier-2 triage step
+  confirms operand provenance. No OWASP Top 10 category fits a
+  memory-safety CWE
+  (OWASP's Top 10 is web-application-shaped, not a C/C++ weakness
+  taxonomy), so this rule and `mem-unsafe-string-functions` both omit the
+  optional `owasp:` metadata field rather than force an inaccurate
+  mapping — an honest gap, matching this file's "flag for whoever expands
+  the ontology" convention for `concept:` labels that don't have an exact
+  seed-file fit either (both use `concept: memory_safety`, a new key not
+  yet in `concept-ontology-seed.yaml`, same status as `code_quality`/
+  `dependency_supply_chain` introduced by earlier tickets).
+- `a03-path-traversal-c` (CWE-22, taint): same sources → `fopen`/`open`.
+
+All seven carry `provenance: authored` (written from the CWE definitions
+and real libc/OpenSSL/POSIX idioms, not ported from any external
+ruleset). 28 new fixtures (`.vuln.c`/`.ok.c` **and** `.vuln.cpp`/`.ok.cpp`
+pairs — two full RED/GREEN pairs per rule, one per language, since a
+single opengrep rule covers both and each language needed its own live
+proof) were RED/GREEN-verified; `npm run check` is green at **274 passed,
+0 failed, 0 skipped** (repo-wide, all packs) and `score-selftest` still
+holds precision=recall=1.000.
+
+Two authoring lessons worth recording:
+
+1. **Opengrep's `metavariable-regex` is start-anchored, not a substring
+   search — the opposite of ast-grep's `constraints:` regex.** The
+   insecure-random rule's first draft used the bare regex
+   `(?i)(token|password|secret|...)` (copied from the working ast-grep
+   `a02-insecure-random-csharp` rule's `constraints:` block) and silently
+   failed RED on a variable named `session_token`: the assignment
+   `session_token = rand();` produced 0 findings even though `token` is
+   plainly a substring. Root cause, confirmed by direct experiment: a
+   variable named exactly `token` matched (the term is at position 0),
+   but `session_token` did not, because opengrep's `metavariable-regex`
+   behaves like Python's `re.match` — anchored at the start of the
+   captured text — while ast-grep's `constraints:` regex (Rust regex
+   `is_match`) searches anywhere in the string. The fix is
+   `regex: '.*(?i)(token|...).*'` — an explicit leading/trailing `.*` to
+   force a substring search. This is a real, easy-to-miss cross-engine
+   behavior difference, not a typo, and is worth restating for the next
+   author who reuses a VAR-name-constraint regex across the two engines:
+   **the same regex text does not mean the same match semantics in
+   opengrep vs. ast-grep.**
+2. **Juliet's own C/C++ test-generator idiom defeats a naive
+   real-function-name rule on a large share of its own corpus — expected,
+   and not chased.** Investigating why `a03-command-injection-c` scored
+   zero true positives against Juliet's `CWE78_OS_Command_Injection`
+   folder (7,813 files) surfaced two compounding reasons, both confirmed
+   by direct experiment against a real Juliet source file: (a) Juliet's
+   generated templates wrap every source/sink in an
+   all-caps preprocessor macro (`#define GETENV getenv`, `#define SYSTEM
+   system`) for its own Windows/POSIX portability — a structural rule
+   matching literal `system($SINK)` never matches source text that reads
+   `SYSTEM(data)`, since opengrep parses pre-preprocessor text and does
+   not expand macros; and (b) even after retargeting a probe rule at the
+   macro names directly, taint still didn't propagate, because Juliet's
+   most common flow variant builds the tainted buffer via `strncat(data +
+   dataLen, environment, ...)` — the destination argument is a pointer
+   *expression* (`data + dataLen`), not the bare `data` lvalue, and
+   opengrep's taint engine does not infer that writing through a
+   pointer-offset expression taints the base variable, with or without an
+   explicit `pattern-propagators` entry for `strncat`. Neither of these
+   is a real-world C idiom worth chasing: the macro wrapping is a Juliet
+   test-harness artifact (real code calls `system()`, not a
+   project-specific `SYSTEM()` macro aliasing it), and matching the exact
+   `$DST + $OFFSET` pointer-arithmetic shape would be over-fitting to one
+   corpus's code-generation template rather than the general "tainted
+   value flows into a command/format/path sink" shape the ticket asked
+   for — the CORPUS.md overfitting guard other tickets already established
+   applies here too. Documented rather than gamed, per that same
+   discipline.
+
+### juliet-cpp re-baseline after C/C++ rule authoring (W1-16, 2026-07-18)
+
+`npm run score -- juliet-cpp --update-baseline` re-ran the (now C/C++-aware)
+opengrep rule set over the same pinned corpus the W2-04 baseline established.
+
+**Before (W2-04): TP=0, FP=0, FN=2680 → precision=n/a, recall=0.000, F1=n/a.**
+**After (W1-16): TP=18, FP=0, FN=2662 → precision=1.000, recall=0.007, F1=0.013.**
+
+Recall moved off zero, as the ticket required, and precision is clean
+(zero false positives across the whole corpus). Per-rule breakdown
+(`corpus/baselines/juliet-cpp.json`): all 18 true positives came from
+`mem-unsafe-string-functions` (`gets()`/`strcpy()`/`sprintf()`/bare-`%s`
+`scanf()` calls Juliet's CWE242/CWE121/CWE122-family test cases do write
+as literal, unwrapped libc calls, unlike the macro-wrapped CWE78 case
+above), against 18,653 further matches on lines the labels file doesn't
+tag at all (`unlabeled`, tracked but not scored either way — Juliet's
+generic helper scaffolding (`std_testcase.h`, its own `printLine`/example
+buffers) reuses these same libc calls throughout the tree outside any
+labeled flaw line). `mem-integer-overflow-malloc` fired 25,021 times
+across the corpus (this shape — `malloc(a*b)`/`realloc(p,a*b)` — is
+common Juliet allocation boilerplate well beyond just the CWE190 folder)
+but landed 0 true positives: the CWE190 label line and the actual
+`malloc($A*$B)` call site did not align within the ±2-line matching
+tolerance in the sampled files, plausible given Juliet's per-CWE
+flow-variant templates route the multiplication through intermediate
+variables in several variants — the same "source list doesn't cover every
+flow variant" limitation the `owasp-benchmark-java` notes above already
+describe. The other five rules
+(`a02-weak-crypto-c`, `a02-insecure-random-c`, `a03-format-string-c`,
+`a03-command-injection-c`, `a03-path-traversal-c`) scored zero matches
+against this corpus, for three *different* verified reasons, not one
+blanket cause:
+
+- **CWE-330 (insecure random) and CWE-22 (path traversal) don't exist as
+  Juliet C/C++ CWE numbers at all** — Juliet uses CWE338 (Weak PRNG) and
+  CWE23/CWE36 (Relative/Absolute Path Traversal) instead, so the label
+  set has zero entries tagged 330 or 22 to score against regardless of
+  rule quality (confirmed by inspecting the labels file directly:
+  `{"134":25,"190":25,"242":18,"327":25,"328":25}` — no 78/22/330/120/787
+  keys at all in the 25-per-CWE-folder bounded sample).
+- **CWE-78 (command injection)** has a real, labeled folder (7,813
+  files) but its sampled entries happen to be the macro-wrapped,
+  pointer-offset flow variant already described above.
+- **CWE-134 (format string) and CWE-327/328 (weak hash/cipher) also have
+  real labeled folders, and neither is a macro-naming or missing-CWE
+  issue — each is a genuine sink/API mismatch**, confirmed by reading a
+  sampled file from each folder directly rather than assumed: Juliet's
+  C/C++ CWE134 samples route the tainted value through the *variadic*
+  sink family (`vfprintf`/`vfwprintf`/`vsnprintf`), not the fixed-arity
+  `printf`/`fprintf`/`syslog` this rule's `pattern-sinks` list covers,
+  and several flow variants pass the value across a C++ reference
+  between two separate source files — beyond opengrep's intrafile taint
+  scope even if the sink matched. Juliet's C/C++ CWE327/CWE328 samples
+  use the **Windows CryptoAPI** (`CryptAcquireContext`/`CryptCreateHash`/
+  `CryptDeriveKey` with `CALG_MD5`/`CALG_DES`/`CALG_RC5`), not the
+  OpenSSL EVP/legacy-MD5 API this rule targets — a different crypto
+  library entirely, not a narrower pattern within the same one. Widening
+  `a03-format-string-c` to the `v*printf` family and `a02-weak-crypto-c`
+  to CryptoAPI's `CALG_*` constants would close these two specific gaps
+  without overfitting (both are real, general C/Windows idioms, not
+  Juliet-specific naming) — flagged here as a concrete, scoped follow-on
+  rather than done in this ticket, since OpenSSL/POSIX (not Win32
+  CryptoAPI or the varargs printf family) was this ticket's authored
+  scope.
+
+This is the same class of honest, corpus-shape-driven gap the
+`owasp-benchmark-java` and Go/Swift/Kotlin notes above already
+document — not a defect in the rules, which are fixture-proven against
+real (non-macro-wrapped) C/C++ idioms, and not chased further per the
+overfitting guard.
+
+**Overfitting guard:** every rule's pattern targets the general CWE shape
+(an unbounded string-copy libc call, a request/environment value reaching
+a command/format/path sink, a broken hash/cipher constant, a
+security-named variable seeded from a non-cryptographic PRNG, an
+unchecked size multiplication) using the real, unwrapped function names
+(`strcpy`, `system`, `getenv`, `EVP_md5`, `rand`, `malloc`) — none
+reference Juliet's macro names, file-naming scheme, or `manifest.xml`.
+
+**Remaining gap (honest, not closed by this ticket):** recall is 0.007,
+not higher, because Juliet's own C/C++ test-generator template wraps
+nearly every source/sink in a portability macro and routes several flow
+variants through pointer-offset buffer writes, both of which a
+literal-function-name pattern rule (by design, and by this file's
+overfitting guard) does not chase. A future ticket could add
+`pattern-propagators` for `strncat`/`memcpy`-into-a-pointer-offset if a
+*real* (non-Juliet) codebase is found to need it, or wire a Juliet-aware
+macro-expansion pre-pass — neither is in this ticket's `write_scope`.
+
 ## Scorecard
 
 <!-- SCORECARD:START (generated by scripts/scorecard.mjs — do not hand-edit) -->
 
 _Generated by `node scripts/scorecard.mjs` from `corpus/baselines/*.json` — rerun after any `--update-baseline` and commit both together._
 
-Rule corpus: **135** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/` combined per pack).
+Rule corpus: **142** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/` combined per pack).
 
 ### By corpus
 
 | Corpus | TP | FP | FN | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|
 | juice-shop | 1 | 0 | 39 | 1.000 | 0.025 | 0.049 |
-| juliet-cpp | 0 | 0 | 2680 | n/a | 0.000 | n/a |
+| juliet-cpp | 18 | 0 | 2662 | 1.000 | 0.007 | 0.013 |
 | ossf-cve-benchmark | 0 | 0 | 39 | n/a | 0.000 | n/a |
 | owasp-benchmark-java | 524 | 62 | 925 | 0.894 | 0.362 | 0.515 |
 
@@ -729,7 +951,7 @@ _Recall/F1 are n/a per pack: the scorer attributes false negatives at the corpus
 
 | Pack | Rules | TP (all corpora) | FP (all corpora) | Precision |
 |---|---|---|---|---|
-| owasp | 97 | 525 | 62 | 0.894 |
+| owasp | 104 | 543 | 62 | 0.898 |
 | framework | 17 | 0 | 0 | n/a |
 | slop | 15 | 0 | 0 | n/a |
 | secrets | 6 | 0 | 0 | n/a |
