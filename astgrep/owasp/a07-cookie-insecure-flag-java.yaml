@@ -1,0 +1,19 @@
+id: bpm-owasp-a07-cookie-insecure-flag-java
+language: java
+severity: warning
+rule:
+  pattern: $COOKIE.setSecure(false)
+message: >
+  A javax.servlet.http.Cookie is explicitly marked setSecure(false) (OWASP
+  A07:2021, CWE-614: Sensitive Cookie Without 'Secure' Attribute). The
+  browser will send this cookie over plain HTTP, letting a network attacker
+  (open wifi, ARP spoofing, a misconfigured proxy) capture it in the clear.
+  Set secure(true) on any cookie carrying a session id or credential.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [614]
+  owasp: "A07:2021"
+  confidence: high
+  concept: session_management
+  since: "0.1.0"

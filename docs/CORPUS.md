@@ -59,6 +59,97 @@ authors Java-targeted opengrep/ast-grep rules (out of this ticket's
 `write_scope`, which is adapter + labels + baseline only — rules are
 authored, tested, and scored in separate tickets by design).
 
+### owasp-benchmark-java re-baseline after Java rule authoring (W1-10, 2026-07-18)
+
+Nine Java-targeted rules were authored to close the gap the W2-01 baseline
+flagged, one per CWE anchor the ticket scoped: `astgrep/owasp/` gets four
+structural (non-taint) rules — `a02-weak-hash-java` (CWE-327/328,
+`MessageDigest.getInstance` constrained to a `"MD5"|"SHA1"|"SHA-1"` first
+arg), `a02-weak-cipher-java` (CWE-327, `Cipher.getInstance` constrained to
+a `"DES"|"DESede"` prefix), `a02-insecure-random-java` (CWE-330,
+`new java.util.Random()`/`new Random()`), and `a07-cookie-insecure-flag-java`
+(CWE-614, `$COOKIE.setSecure(false)`, mirroring the existing TS rule's
+explicit-false-flag approach). `packs/owasp/` gets five opengrep
+`mode: taint` rules — `a03-sql-injection-java` (CWE-89),
+`a03-command-injection-java` (CWE-78, with a `pattern-propagators` entry so
+taint flows through the `List.add()` calls the corpus's `ProcessBuilder`
+idiom actually uses — a plain source→sink rule missed 100% of these),
+`a03-path-traversal-java` (CWE-22), `a03-ldap-injection-java` (CWE-90), and
+`a03-xpath-injection-java` (CWE-643) — all sourced from
+`request.getParameter`/`getHeader`/`getQueryString`. All nine carry
+`provenance: authored` (written from the CWE definitions and real Java
+servlet/JDBC/JNDI/XPath idioms observed in the fetched corpus, not ported
+from any external ruleset). 18 new fixtures (`.vuln.java`/`.ok.java` pairs)
+were RED/GREEN-verified; `npm run check` is green at **146 passed, 0
+failed, 0 skipped** (repo-wide, all packs).
+
+One authoring lesson worth recording: two multi-argument taint sinks
+(`DirContext.search(base, filter, filterArgs, ...)`,
+`XPath.evaluate(expr, context)`) initially false-fired on `.ok` fixtures
+that passed the *tainted* value through a non-sink argument position
+(`filterArgs`, the parameterized-bind array) — opengrep's default taint
+matching flags a sink pattern if *any* metavariable in a multi-arg pattern
+carries taint, not just the one bound to the sink. Fixed with an explicit
+`focus-metavariable: $SINK` on each multi-arg sink pattern. The
+path-traversal `.ok` fixture needed a second iteration for a related
+reason: taint over-approximates through method calls (a value derived from
+a `Map.getOrDefault(taintedKey, ...)` lookup was still marked tainted even
+though only the *key*, never the *value*, depended on request input) — the
+fixture that stayed clean uses a literal-per-branch `if/else` allowlist
+instead, since branch-literal assignment (not a call result) doesn't
+propagate taint. Both are genuine opengrep taint-mode behaviors confirmed
+by direct experiment, not guesses — noted here for the next taint rule
+author in this repo.
+
+Re-baseline (`npm run score -- owasp-benchmark-java --update-baseline`):
+
+**Before: TP=0, FP=0, FN=1415 → precision=n/a, recall=0.000, F1=n/a.**
+**After: TP=524, FP=62, FN=925 → precision=0.894, recall=0.362, F1=0.515.**
+
+Per-rule breakdown (`corpus/baselines/owasp-benchmark-java.json`):
+`a02-insecure-random-java` TP=193/FP=0, `a02-weak-hash-java` TP=113/FP=0,
+`a02-weak-cipher-java` TP=97/FP=0, `a07-cookie-insecure-flag-java`
+TP=36/FP=0, `a03-path-traversal-java` TP=41/FP=32,
+`a03-sql-injection-java` TP=20/FP=15, `a03-ldap-injection-java` TP=6/FP=10,
+`a03-xpath-injection-java` TP=7/FP=1, `a03-command-injection-java`
+TP=11/FP=4. The four structural (non-taint) rules are FP-free — the
+literal-API-misuse shape (weak digest/cipher/PRNG, explicit
+`setSecure(false)`) has no ambiguity. All of the corpus's false positives
+come from the five taint rules, expected: the corpus's "safe" variants for
+sqli/pathtraver/ldapi/xpathi/cmdi are deliberately near-identical flows
+that sanitize or parameterize just before the sink, and a source→sink taint
+rule without corpus-specific sanitizer patterns will over-flag some of
+those (the same class of limitation `a10-ssrf-user-controlled-url`'s
+existing notes already call out for the TS rules).
+
+**Overfitting guard:** every rule's pattern targets the general CWE shape
+(a weak digest algorithm string, an unauthenticated PRNG constructor, an
+explicit insecure-cookie flag, a request-sourced value reaching a
+JDBC/process/filesystem/LDAP/XPath sink) — none reference OWASP Benchmark
+test-file names, its `expectedresults-1.2.csv`, or any Benchmark-specific
+helper class. Every source pattern (`getParameter`/`getHeader`/
+`getQueryString`) and every sink (`Statement.execute*`, `Cipher.getInstance`,
+`DirContext.search`, ...) is a real, general Java/servlet idiom independently
+verifiable against the CWE definition and OWASP cheat sheets, not
+reverse-engineered from the labels.
+
+**Remaining gap (honest, not closed by this ticket):** recall is 0.362, not
+higher, for real reasons — (1) several corpus CWE categories have no rule
+at all yet (xss=455, trustbound=126 cases contribute 0 TP — out of this
+ticket's scoped CWE list); (2) the corpus's dominant SQLi/cmdi/pathtraver/
+ldapi/xpathi source variants also use `getParameterMap`/`getParameterValues`/
+`getCookies()` (array/loop extraction) and multi-hop flows our source list
+doesn't cover, so taint misses a majority of those categories' true
+positives even though the sink/shape is right; (3) the crypto/hash rules
+only match a literal algorithm-name argument, missing the corpus's
+variable-indirection variants (`Cipher.getInstance(algorithm)` where
+`algorithm` comes from a properties file) by design — chasing that would
+need constant-propagation across statements, a different (and much
+FP-riskier) rule shape. These are real follow-on tickets (broaden Java
+taint sources; add `a03-xss-*-java` and `a01-*-java` trust-boundary rules;
+decide whether variable-indirected crypto calls are worth the FP risk), not
+gamed away here.
+
 ### juliet-cpp (W2-04, 2026-07-18)
 
 Zip-fetch path proven end-to-end on the largest corpus in the fleet — and
@@ -154,7 +245,7 @@ commit the refreshed `docs/CORPUS.md` section alongside the new baseline.
 
 _Generated by `node scripts/scorecard.mjs` from `corpus/baselines/*.json` — rerun after any `--update-baseline` and commit both together._
 
-Rule corpus: **66** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/` combined per pack).
+Rule corpus: **75** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/` combined per pack).
 
 ### By corpus
 
@@ -163,7 +254,7 @@ Rule corpus: **66** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/
 | juice-shop | 1 | 0 | 39 | 1.000 | 0.025 | 0.049 |
 | juliet-cpp | 0 | 0 | 2680 | n/a | 0.000 | n/a |
 | ossf-cve-benchmark | 0 | 0 | 39 | n/a | 0.000 | n/a |
-| owasp-benchmark-java | 0 | 0 | 1415 | n/a | 0.000 | n/a |
+| owasp-benchmark-java | 524 | 62 | 925 | 0.894 | 0.362 | 0.515 |
 
 ### By pack
 
@@ -171,7 +262,7 @@ _Recall/F1 are n/a per pack: the scorer attributes false negatives at the corpus
 
 | Pack | Rules | TP (all corpora) | FP (all corpora) | Precision |
 |---|---|---|---|---|
-| owasp | 30 | 1 | 0 | 1.000 |
+| owasp | 39 | 525 | 62 | 0.894 |
 | framework | 17 | 0 | 0 | n/a |
 | slop | 13 | 0 | 0 | n/a |
 | secrets | 6 | 0 | 0 | n/a |

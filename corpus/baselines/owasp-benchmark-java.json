@@ -1,9 +1,46 @@
 {
-  "tp": 0,
-  "fp": 0,
-  "fn": 1415,
-  "precision": null,
-  "recall": 0,
-  "f1": null,
-  "perRule": {}
+  "tp": 524,
+  "fp": 62,
+  "fn": 925,
+  "precision": 0.89419795221843,
+  "recall": 0.3616287094547964,
+  "f1": 0.514987714987715,
+  "perRule": {
+    "packs.owasp.bpm-owasp-a03-command-injection-java": {
+      "tp": 11,
+      "fp": 4
+    },
+    "packs.owasp.bpm-owasp-a03-sql-injection-java": {
+      "tp": 20,
+      "fp": 15
+    },
+    "packs.owasp.bpm-owasp-a03-ldap-injection-java": {
+      "tp": 6,
+      "fp": 10
+    },
+    "packs.owasp.bpm-owasp-a03-path-traversal-java": {
+      "tp": 41,
+      "fp": 32
+    },
+    "packs.owasp.bpm-owasp-a03-xpath-injection-java": {
+      "tp": 7,
+      "fp": 1
+    },
+    "bpm-owasp-a02-weak-cipher-java": {
+      "tp": 97,
+      "fp": 0
+    },
+    "bpm-owasp-a02-weak-hash-java": {
+      "tp": 113,
+      "fp": 0
+    },
+    "bpm-owasp-a07-cookie-insecure-flag-java": {
+      "tp": 36,
+      "fp": 0
+    },
+    "bpm-owasp-a02-insecure-random-java": {
+      "tp": 193,
+      "fp": 0
+    }
+  }
 }
