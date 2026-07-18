@@ -199,7 +199,11 @@ authoring at scale (both `ast-grep 0.44.1` and `opengrep 1.25.0` parse
 and a `getStringExtra`→`File()` taint flow both confirmed on hand-written
 `.kt` snippets before any rule was written). `astgrep/owasp/` gets nine
 structural rules — `a02-weak-hash-kotlin` (CWE-327/328), `a02-weak-cipher-
-kotlin` (CWE-327), `a02-insecure-random-kotlin` (CWE-330),
+kotlin` (CWE-327, `Cipher.getInstance` constrained to a DES/DESede name
+**or** an `/ECB(/|")` mode suffix on any cipher — the ECB branch closes a
+gap the equivalent `a02-weak-cipher-java` rule (W1-10) doesn't cover:
+`AES/ECB/...` is a strong cipher in a broken mode, still CWE-327, and the
+ticket brief named "Cipher DES/ECB" explicitly), `a02-insecure-random-kotlin` (CWE-330),
 `a02-insecure-transport-kotlin` (CWE-295, empty-bodied
 `X509TrustManager.checkServerTrusted`/`checkClientTrusted` overrides or an
 always-true `HostnameVerifier` lambda), `a02-sharedprefs-secret-storage-

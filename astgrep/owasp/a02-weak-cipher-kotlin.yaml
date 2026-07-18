@@ -7,16 +7,19 @@ rule:
     - pattern: $X.getInstance($ALG, $$$REST)
 constraints:
   ALG:
-    regex: '^"(DES|DESede)(/|")'
+    regex: '^"(DES|DESede)(/|")|/ECB(/|")'
   X:
     regex: 'Cipher'
 message: >
-  javax.crypto.Cipher is instantiated with DES or triple-DES in Kotlin
+  javax.crypto.Cipher is instantiated with DES/triple-DES, or with ECB
+  block mode on any cipher (including a strong one like AES), in Kotlin
   (OWASP A02:2021, CWE-327: Use of a Broken or Risky Cryptographic
-  Algorithm). DES's 56-bit effective key is brute-forceable and
-  DESede/ECB mode leaks plaintext block patterns — the same javax.crypto
-  API Java uses, called from Kotlin. Use AES-256/GCM instead, and never
-  ECB mode for any cipher.
+  Algorithm). DES's 56-bit effective key is brute-forceable; ECB mode
+  encrypts each block independently, so identical plaintext blocks
+  produce identical ciphertext blocks, leaking structure regardless of
+  key strength — the same javax.crypto API Java uses, called from
+  Kotlin. Use AES-256/GCM (or another authenticated mode) instead, and
+  never ECB mode for any cipher.
 metadata:
   license: proprietary
   provenance: authored
