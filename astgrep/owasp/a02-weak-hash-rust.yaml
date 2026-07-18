@@ -1,0 +1,28 @@
+# ast-grep rule — weak/broken cryptographic hash use in Rust.
+# Structural: md5/sha1 crate calls are always the antipattern regardless of
+# context — there is no legitimate security use of a collision-broken digest.
+id: bpm-owasp-a02-weak-hash-rust
+language: rust
+severity: warning
+rule:
+  any:
+    - pattern: md5::compute($X)
+    - pattern: Md5::new()
+    - pattern: Sha1::new()
+    - pattern: sha1::Sha1::new()
+message: >
+  The md5 or sha1 crate is used to hash data (OWASP A02:2021, CWE-327: Use
+  of a Broken or Risky Cryptographic Algorithm / CWE-328: Use of Weak Hash).
+  Both are cryptographically broken for security use (practical collision
+  attacks) and must not be used for password hashing, digital signatures,
+  or integrity checks. Use the sha2 crate (Sha256 or better) for
+  integrity/signing, and argon2 or bcrypt (never a bare digest) for
+  password storage.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327, 328]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"

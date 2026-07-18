@@ -574,6 +574,102 @@ writes back to the repo. When a baseline is deliberately updated via
 `--update-baseline` in a PR, run `node scripts/scorecard.mjs` locally and
 commit the refreshed `docs/CORPUS.md` section alongside the new baseline.
 
+## Rust rule coverage (W1-17, 2026-07-18)
+
+Both engines were verified against Rust before authoring: `ast-grep 0.44.1`
+parses Rust (built-in tree-sitter grammar, confirmed via a probe rule/
+fixture) and `opengrep 1.25.0` supports `languages: [rust]` including
+`mode: taint` (confirmed with a source→propagator→sink probe). Rust is
+memory-safe by default outside `unsafe`, so — per the ticket's framing —
+coverage focuses on the classes that are still pattern-matchable in safe
+Rust: injection, crypto, and two lint-style panic/review smells, rather than
+forcing memory-corruption CWEs that Rust's type system already rules out.
+
+Ten rules, one per CWE anchor. `packs/owasp/` gets four opengrep
+`mode: taint` rules (sources `$REQ.query_string()`/
+`$REQ.match_info().get($X)`, modeling an actix-web `HttpRequest`) —
+`a03-sql-injection-rust` (CWE-89, tainted input reaching `sqlx::query`/
+`query_as`/`diesel::sql_query` via `format!` interpolation),
+`a03-command-injection-rust` (CWE-78, tainted input reaching
+`Command::new`/`.arg`), `a03-path-traversal-rust` (CWE-22, tainted input
+reaching `File::open`/`fs::read`/`fs::read_to_string`/`fs::write`), and
+`a10-ssrf-rust` (CWE-918, tainted input reaching `reqwest::get` or a
+`.get(...).send()`/`.post(...).send()` chain — the sink is anchored on the
+completed `.send()` chain rather than a bare `.get()` so the rule can't
+false-positive on unrelated `.get()` calls, e.g. `HashMap::get`, that
+happen to take a tainted argument). `astgrep/owasp/` gets four structural
+rules — `a02-weak-hash-rust` (CWE-327/328, `md5::compute`/`Md5::new`/
+`Sha1::new`), `a02-weak-cipher-rust` (CWE-327, the `des` crate's
+`Des::new`/`TdesEde3::new` — split out from weak-hash as its own rule, not
+folded into the CWE-327/328 hash rule, since DES is a cipher not a hash and
+the two shapes need different pattern anchors, matching the precedent set
+by `a02-weak-cipher-{go,php,java,kotlin}` already existing as separate
+rules from their sibling weak-hash rules — plus the one-arg
+`Encryptor::<$ALG>::new(key)`/`Decryptor::<$ALG>::new(key)` construction
+shape, which is ECB mode (any algorithm) specifically because ECB's
+`KeyInit::new(key)` takes one argument while the non-broken `cbc` crate's
+`KeyIvInit::new(key, iv)` takes two — the arg-count difference is what
+keeps a `cbc::Encryptor` construction clean, verified with a dedicated case
+in the `.ok` fixture, the same "flag ECB mode on any cipher" posture as
+`weak-cipher-kotlin`),
+`a02-insecure-random-rust` (CWE-330, `SmallRng` — documented
+by the `rand` crate itself as unsuitable for cryptographic use — flagged
+unconditionally, plus `StdRng::seed_from_u64` constrained via a metavariable
+regex to a literal numeric seed so a variable/entropy-derived seed stays
+clean), and `a02-tls-verify-disabled-rust` (CWE-295,
+`.danger_accept_invalid_certs(true)` on a reqwest `ClientBuilder`).
+
+The remaining two rules are the ticket's explicitly lint-style smells and
+live in `astgrep/slop/` (not `owasp/`, since they're Rust-specific code-
+quality signals rather than an OWASP Top-10 category) with confidence
+marked down accordingly: `unsafe-block-rust` (CWE-242-adjacent, `confidence:
+low` — every `unsafe { }` block is flagged for review, but the rule is
+explicit in its own message that `unsafe` is often necessary and correct;
+there is no structural way to distinguish a safe use from a misuse, so this
+is a routing signal, not a verdict) and `unwrap-expect-io-rust` (CWE-248/
+703, `confidence: medium` — narrowed to `.unwrap()`/`.expect()` chained
+directly onto a fixed set of canonical fallible I/O/network calls
+(`File::open`, `fs::read`/`read_to_string`/`write`, `reqwest::get`,
+`TcpStream::connect`) rather than every `.unwrap()` in the file, so tests
+and CLI `main()` bodies that legitimately unwrap stay out of scope).
+
+Two taint-rule fixtures needed a specific `.ok` shape to stay clean:
+opengrep's default taint propagation carries tainted data through ordinary
+function calls (`format!`) and conditional branches (`if`/`match` arms)
+even without an explicit `pattern-propagator`, so an `.ok` fixture that
+merely *validates* a tainted value before reusing it (e.g. an allowlist
+`.find()` or an `if`-guarded fallback) still reads as tainted to the
+engine. Both `a03-command-injection-rust.ok.rs` and `a10-ssrf-rust.ok.rs`
+were rewritten so every branch of the validation `match` yields a fixed
+string literal, never the tainted variable itself — a data-flow break, not
+just a validation check, which is the shape opengrep's taint engine
+actually needs to see clean.
+
+**Known limitation, not fixed in this ticket:** the flip side of the above
+is that all four taint rules will also false-positive on *correctly*
+validated input that still carries the tainted value forward — e.g.
+`fs::read_to_string(resolved)` after a proper `canonicalize()` + prefix
+check still fires, because taint flows through `canonicalize()` by default.
+That's why `a03-path-traversal-rust.ok.rs` reads a hardcoded path after its
+validation rather than the validated `resolved` path — the realistic-but-
+still-tainted shape isn't expressible as a clean `.ok` fixture without
+`pattern-sanitizers`. A future ticket that wants better precision on this
+pack should declare `pattern-sanitizers` for the canonicalize/allowlist
+helpers each rule's real-world callers are likely to use. Separately, the
+SSRF sink `$CLIENT.get($SINK).send()` requires `.send()` immediately after
+`.get()`, so a longer chain (`.get(url).header(...).send()`) slips through
+uncaught — acceptable first-pass recall, flagged for a future precision
+pass.
+
+No Rust corpus is pinned in `corpus.lock` yet (see "Standardized set"
+above — none of the seven pinned corpora are Rust-targeted). All ten
+rules are fixture-verified only (RED/GREEN pairs in `fixtures/owasp/` and
+`fixtures/slop/`, `npm run check` green, 0 skips) — they carry no
+corpus-derived precision/recall numbers until a future ticket adds a Rust
+corpus (e.g. a Rust subset of RustSec advisories or a hand-labeled corpus
+in the style of DSVW) the way `owasp-benchmark-java` was onboarded for
+Java.
+
 ## PHP rule coverage (W1-15, 2026-07-18)
 
 Ten PHP-targeted rules were authored — `packs/owasp/` gets seven opengrep

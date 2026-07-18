@@ -1,0 +1,44 @@
+# ast-grep rule — .unwrap()/.expect() chained directly onto a fallible I/O
+# or network call, flagged as a review smell (panic/DoS risk), not an
+# always-bug: .unwrap()/.expect() on a Result from filesystem or network
+# calls that can legitimately fail at runtime (missing file, permission
+# denied, connection refused) panics the whole thread/process instead of
+# returning an error the caller can handle — an attacker or a flaky
+# dependency can trigger a denial of service by making the I/O fail on
+# purpose. Narrowed to a fixed set of canonical fallible I/O/network call
+# shapes (File::open, fs::read/read_to_string, reqwest::get) rather than
+# every .unwrap() in the file, so tests and CLI tools that legitimately
+# unwrap in main()/tests stay out of scope — matches the confidence
+# discipline used for other lint-style rules in this pack (e.g. R-09/R-10).
+id: bpm-slop-unwrap-expect-io-rust
+language: rust
+severity: hint
+rule:
+  any:
+    - pattern: File::open($X).unwrap()
+    - pattern: File::open($X).expect($MSG)
+    - pattern: fs::File::open($X).unwrap()
+    - pattern: fs::read($X).unwrap()
+    - pattern: fs::read_to_string($X).unwrap()
+    - pattern: fs::write($X, $DATA).unwrap()
+    - pattern: reqwest::get($X).await.unwrap()
+    - pattern: TcpStream::connect($X).unwrap()
+message: >
+  .unwrap()/.expect() is chained directly onto a fallible I/O or network
+  call (CWE-248: Uncaught Exception / CWE-703: Improper Check or Handling
+  of Exceptional Conditions). A missing file, permission error, or dropped
+  connection turns this Result::Err into an immediate panic, crashing the
+  thread (or the whole process, if not caught by a panic boundary) instead
+  of returning a recoverable error — a denial-of-service surface if the
+  input path is ever attacker- or environment-influenced. Propagate the
+  error with `?` (returning a Result from the caller) or handle it
+  explicitly with `match`/`if let Err(...)`, reserving unwrap/expect for
+  cases where failure is truly a programmer error (test code, a value
+  already validated as `Some`/`Ok`, etc.).
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [248, 703]
+  confidence: medium
+  concept: code_quality
+  since: "0.1.0"

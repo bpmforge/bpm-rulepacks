@@ -1,0 +1,31 @@
+# ast-grep rule — `unsafe { }` block usage in Rust, flagged as a review
+# smell, not an always-bug. Rust is memory-safe by construction outside
+# unsafe blocks; every unsafe block is a place where the compiler's
+# guarantees (bounds checks, aliasing, lifetime validity) are manually
+# asserted by the author instead of proven. Many unsafe blocks are correct
+# and necessary (FFI, low-level data structures, perf-critical code) — this
+# rule exists to route every one of them through explicit review, not to
+# claim the block is a vulnerability. Low confidence: the .ok fixture is a
+# file with zero unsafe blocks, since there is no way to write a "safe use
+# of unsafe" shape that this structural rule could distinguish from an
+# unsafe misuse — that judgment is the human reviewer's job.
+id: bpm-slop-unsafe-block-rust
+language: rust
+severity: hint
+rule:
+  kind: unsafe_block
+message: >
+  `unsafe { }` block (CWE-242-adjacent: manual bypass of Rust's memory-
+  safety guarantees). Not automatically a bug — unsafe is sometimes
+  necessary (FFI, raw pointers, perf-critical code) — but every unsafe
+  block removes the compiler's bounds/aliasing/lifetime checks for its
+  contents, so it deserves explicit review: confirm the invariants the
+  unsafe code relies on are actually upheld, and prefer a safe abstraction
+  (or a well-audited crate) over hand-rolled unsafe where one exists.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [242]
+  confidence: low
+  concept: code_quality
+  since: "0.1.0"
