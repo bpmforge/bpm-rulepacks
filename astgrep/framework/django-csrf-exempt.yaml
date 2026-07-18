@@ -1,0 +1,26 @@
+id: bpm-framework-django-csrf-exempt
+language: python
+severity: warning
+rule:
+  pattern: "@csrf_exempt"
+message: >
+  A view is decorated with @csrf_exempt, disabling Django's built-in CSRF
+  protection for that endpoint (Django framework knowledge, CWE-352:
+  Cross-Site Request Forgery). This is sometimes legitimate (webhook
+  receivers verified by an HMAC signature, public APIs authenticated by a
+  bearer token rather than session cookies), but it removes a real
+  defense-in-depth layer and is worth a second look at every call site.
+  Confirm the endpoint uses a session-independent auth mechanism, or scope
+  csrf_exempt as narrowly as possible instead of applying it to a whole
+  view class.
+# Primary source: Django docs (django.views.decorators.csrf.csrf_exempt) +
+# OWASP CSRF Prevention Cheat Sheet.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [352]
+  owasp: "A01:2021"
+  framework: django
+  confidence: medium
+  concept: authorization
+  since: "0.1.0"

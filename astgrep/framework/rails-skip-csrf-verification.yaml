@@ -1,0 +1,27 @@
+id: bpm-framework-rails-skip-csrf-verification
+language: ruby
+severity: warning
+rule:
+  pattern: skip_before_action :verify_authenticity_token
+message: >
+  A controller disables verify_authenticity_token via skip_before_action
+  (Rails framework knowledge, CWE-352: Cross-Site Request Forgery). This is
+  sometimes legitimate (webhook receivers verified by an HMAC signature,
+  token-authenticated JSON APIs that don't rely on session cookies), but it
+  removes Rails' built-in CSRF defense for every action it covers and is
+  worth a second look at every call site — especially when scoped with
+  `only:`/`except:` to a subset of actions, since that subset is exactly
+  where the defense was judged unnecessary. Confirm the affected actions
+  use a session-independent auth mechanism, or scope the skip as narrowly
+  as possible instead of disabling it controller-wide.
+# Primary source: Rails Security Guide (CSRF Protection §) + OWASP CSRF
+# Prevention Cheat Sheet.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [352]
+  owasp: "A01:2021"
+  framework: rails
+  confidence: medium
+  concept: authorization
+  since: "0.1.0"

@@ -1,0 +1,29 @@
+id: bpm-framework-django-rawsql-non-constant
+language: python
+severity: warning
+rule:
+  pattern: RawSQL($X, $PARAMS)
+constraints:
+  X:
+    not:
+      kind: string
+message: >
+  django.db.models.expressions.RawSQL is constructed with a non-constant
+  SQL string (Django framework knowledge, CWE-89: SQL Injection). Unlike
+  the ORM's parameterized query builder, RawSQL's first argument is
+  inserted into the generated query verbatim — only the $PARAMS sequence
+  is escaped. If the SQL text itself is built from a variable (f-string,
+  concatenation, format call), an attacker-controlled value baked into that
+  text bypasses parameterization entirely. Keep the SQL text a fixed string
+  literal and pass all variable values through $PARAMS instead.
+# Primary source: Django docs (django.db.models.expressions.RawSQL) + OWASP
+# SQL Injection Prevention Cheat Sheet.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [89]
+  owasp: "A03:2021"
+  framework: django
+  confidence: medium
+  concept: sql_database
+  since: "0.1.0"
