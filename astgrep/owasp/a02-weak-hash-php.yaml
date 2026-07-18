@@ -1,0 +1,26 @@
+id: bpm-owasp-a02-weak-hash-php
+language: php
+severity: warning
+rule:
+  any:
+    - pattern: md5($X)
+    - pattern: sha1($X)
+constraints:
+  X:
+    regex: '(?i)pass|pwd|secret'
+message: >
+  md5() or sha1() is used to hash a password-shaped value (OWASP
+  A02:2021, CWE-327: Use of a Broken or Risky Cryptographic Algorithm /
+  CWE-328: Use of a Weak Hash). Both are fast, unsalted digests designed
+  for speed, not password storage — GPU cracking rigs test billions of
+  candidates per second against them. Use password_hash() with
+  PASSWORD_BCRYPT or PASSWORD_ARGON2ID, and verify with
+  password_verify(), instead of a bare hash function.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327, 328]
+  owasp: "A02:2021"
+  confidence: medium
+  concept: cryptography
+  since: "0.1.0"

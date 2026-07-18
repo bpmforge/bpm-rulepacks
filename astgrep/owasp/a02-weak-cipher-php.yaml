@@ -1,0 +1,23 @@
+id: bpm-owasp-a02-weak-cipher-php
+language: php
+severity: warning
+rule:
+  pattern: mcrypt_encrypt($CIPHER, $KEY, $DATA, $MODE)
+constraints:
+  CIPHER:
+    regex: 'MCRYPT_DES'
+message: >
+  mcrypt_encrypt() is called with MCRYPT_DES, the DES cipher (OWASP
+  A02:2021, CWE-327: Use of a Broken or Risky Cryptographic Algorithm).
+  DES's 56-bit key is brute-forceable in hours on commodity hardware,
+  and the ext/mcrypt extension itself was removed in PHP 7.2 and
+  unmaintained since 2007. Use openssl_encrypt() with 'aes-256-gcm' (an
+  authenticated mode) and a random per-message IV instead.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"
