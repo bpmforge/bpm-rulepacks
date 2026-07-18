@@ -1,0 +1,28 @@
+id: bpm-owasp-a03-webview-untrusted-content-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: $WEBVIEW.loadData($DATA, $MIME, $ENC)
+    - pattern: $WEBVIEW.loadDataWithBaseURL($BASE, $DATA, $MIME, $ENC, $HIST)
+  not:
+    any:
+      - pattern: $WEBVIEW.loadData("$LITERAL", $MIME, $ENC)
+      - pattern: $WEBVIEW.loadDataWithBaseURL($BASE, "$LITERAL", $MIME, $ENC, $HIST)
+message: >
+  A non-literal HTML string is passed to WebView.loadData() or
+  loadDataWithBaseURL() (OWASP A03:2021, CWE-79: Cross-Site Scripting). If
+  any part of that HTML is attacker-influenced (a server response, an
+  Intent extra, a filename), the WebView will render it with JavaScript
+  enabled by default — an XSS in this context can pivot to a full
+  addJavascriptInterface bridge takeover, not just a DOM-scoped attack.
+  Sanitize/escape the content before rendering, or load it as data (not
+  markup) via a template that never treats untrusted text as HTML.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [79]
+  owasp: "A03:2021"
+  confidence: medium
+  concept: input_validation
+  since: "0.1.0"

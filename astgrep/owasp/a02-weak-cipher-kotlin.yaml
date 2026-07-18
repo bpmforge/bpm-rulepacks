@@ -1,0 +1,27 @@
+id: bpm-owasp-a02-weak-cipher-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: $X.getInstance($ALG)
+    - pattern: $X.getInstance($ALG, $$$REST)
+constraints:
+  ALG:
+    regex: '^"(DES|DESede)(/|")'
+  X:
+    regex: 'Cipher'
+message: >
+  javax.crypto.Cipher is instantiated with DES or triple-DES in Kotlin
+  (OWASP A02:2021, CWE-327: Use of a Broken or Risky Cryptographic
+  Algorithm). DES's 56-bit effective key is brute-forceable and
+  DESede/ECB mode leaks plaintext block patterns — the same javax.crypto
+  API Java uses, called from Kotlin. Use AES-256/GCM instead, and never
+  ECB mode for any cipher.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"

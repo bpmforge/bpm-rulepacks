@@ -1,0 +1,23 @@
+id: bpm-owasp-a02-insecure-random-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: java.util.Random($$$ARGS)
+    - pattern: Random($$$ARGS)
+message: >
+  A Random instance (java.util.Random, or the bare Random(...) constructor
+  which resolves to it or to kotlin.random.Random's same non-cryptographic
+  LCG family) is constructed where a security-sensitive value is generated
+  (OWASP A02:2021, CWE-330: Use of Insufficiently Random Values). Its
+  output is predictable from a handful of observed values, which breaks
+  any token, session key, PIN, or reset code derived from it. Use
+  java.security.SecureRandom for anything security-sensitive.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [330]
+  owasp: "A02:2021"
+  confidence: medium
+  concept: cryptography
+  since: "0.1.0"
