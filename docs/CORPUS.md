@@ -190,6 +190,106 @@ safe variants, so no precision/FP-rate signal is available from this
 corpus without further source-marker parsing — see
 `corpus/labels/juliet-cpp.md`). Full adapter/verification notes there.
 
+### Kotlin rule authoring — no pinned corpus yet (W1-12, 2026-07-18)
+
+Eleven Kotlin-targeted rules were authored to extend the OWASP pack past
+Java/TS into Android/Kotlin idioms: engine choice was verified live before
+authoring at scale (both `ast-grep 0.44.1` and `opengrep 1.25.0` parse
+`.kt` correctly, including opengrep taint mode — `MessageDigest.getInstance`
+and a `getStringExtra`→`File()` taint flow both confirmed on hand-written
+`.kt` snippets before any rule was written). `astgrep/owasp/` gets nine
+structural rules — `a02-weak-hash-kotlin` (CWE-327/328), `a02-weak-cipher-
+kotlin` (CWE-327, `Cipher.getInstance` constrained to a DES/DESede name
+**or** an `/ECB(/|")` mode suffix on any cipher — the ECB branch closes a
+gap the equivalent `a02-weak-cipher-java` rule (W1-10) doesn't cover:
+`AES/ECB/...` is a strong cipher in a broken mode, still CWE-327, and the
+ticket brief named "Cipher DES/ECB" explicitly), `a02-insecure-random-kotlin` (CWE-330),
+`a02-insecure-transport-kotlin` (CWE-295, empty-bodied
+`X509TrustManager.checkServerTrusted`/`checkClientTrusted` overrides or an
+always-true `HostnameVerifier` lambda), `a02-sharedprefs-secret-storage-
+kotlin` (CWE-312, `edit().putString()` with a password/token/secret-shaped
+key), `a03-sql-injection-android-kotlin` (CWE-89, `rawQuery`/`execSQL`/
+JDBC `Statement`/`createNativeQuery` built via `+` concatenation or a
+`${...}` string-template interpolation instead of bind parameters),
+`a03-command-injection-kotlin` (CWE-78, non-literal argument to
+`Runtime.exec()`/`ProcessBuilder(...).start()`), `a03-webview-untrusted-
+content-kotlin` (CWE-79, non-literal HTML into `WebView.loadData`/
+`loadDataWithBaseURL`), and `a05-webview-js-interface-kotlin` (CWE-749,
+`addJavascriptInterface` — flagged unconditionally, since exposing a
+native JS bridge is a native attack-surface decision regardless of
+argument shape). `packs/owasp/` gets one opengrep `mode: taint` rule —
+`a03-path-traversal-kotlin` (CWE-22, `Intent.getStringExtra`/servlet
+`getParameter`/`getHeader` sources into `File`/`FileInputStream`/
+`FileOutputStream`/`FileReader`/`FileWriter` sinks). One rule reaches
+outside strict Android/OWASP-Top-10-mapping into a documented recent
+mobile CVE class: `a01-pendingintent-mutable-kotlin` (CWE-926,
+`PendingIntent.getActivity`/`getService`/`getBroadcast` missing
+`FLAG_IMMUTABLE` — "PendingIntent hijacking," this ticket's answer to
+"Android exported components / intent misuse if pattern-expressible" from
+the ticket brief). All eleven carry `provenance: authored` (written from
+the CWE definitions and real Android/JDBC/Spring-Kotlin idioms, not ported
+from any external ruleset). 22 new fixtures (`.vuln.kt`/`.ok.kt` pairs)
+were RED/GREEN-verified; `npm run check` is green at **168 passed, 0
+failed, 0 skipped** (repo-wide, all packs) and `score-selftest` still
+holds precision=recall=1.000.
+
+Two authoring lessons worth recording, both caught by the RED-before-GREEN
+discipline rather than shipped:
+
+1. **Kotlin string templates defeat naive literal-exclusion patterns.**
+   `a03-command-injection-kotlin`'s `not: pattern: exec("$LITERAL")`
+   exclusion is meant to skip calls whose argument is a hardcoded string,
+   but ast-grep binds `$LITERAL` to the *whole* string-literal node
+   regardless of whether it contains a `${...}` interpolation — so a vuln
+   fixture written as `exec("ping -c 1 $host")` (a template string) was
+   silently excluded by the same pattern meant to exempt only truly
+   constant strings, producing a false-negative RED test. Fixed by writing
+   the vuln fixture as explicit `+` concatenation (`"ping -c 1 " + host`)
+   instead, which is a structurally different node the exclusion pattern
+   correctly does not match. Anyone authoring a "non-literal argument"
+   exclusion rule for a template-string language (Kotlin, JS, Python
+   f-strings) should fixture-test with concatenation *and* interpolation
+   separately — they are not interchangeable "non-literal" shapes for a
+   literal-exclusion pattern.
+2. **The Java taint over-approximation lesson (W1-10) reproduces
+   identically in Kotlin.** `a03-path-traversal-kotlin`'s first `.ok`
+   fixture attempt used `File(name).name` to strip path components from a
+   tainted value before reuse — opengrep's taint engine still marked the
+   result tainted (a method call on tainted input doesn't clear taint by
+   default), so the fixture wasn't actually clean. Same fix as the Java
+   rule: the `.ok` fixture uses a literal-per-branch `when` allowlist
+   instead, since branch-literal assignment (not a call result) doesn't
+   propagate taint.
+
+**Follow-on flagged, not done here:** this ticket's `write_scope` is rules
++ fixtures only, matching the ticket brief ("No pinned Kotlin corpus —
+validate via fixtures; note follow-on"). There is currently no
+`kotlin`/`android`-language corpus in `corpus.lock` — candidates for a
+future ticket: **OWASP MASTG's crackmes/UnCrackable apps** (MIT-licensed
+Android CTF-style targets with documented vulns, small enough to hand-
+label) or a **Juliet-for-Android equivalent** if one is ever published;
+absent that, an adapter over a curated set of real Android CVE fix-commits
+(same shape as `CWE-Bench-Java`) would give a precision/recall signal.
+Until then these eleven rules are Tier-1 (fixture) proven only, with no
+Tier-2 (corpus) precision/recall number — the same honest gap the
+`owasp-benchmark-java` W2-01 baseline called out for Java before W1-10
+closed it.
+
+Concept-ontology note: `a02-insecure-transport-kotlin` and
+`a02-sharedprefs-secret-storage-kotlin` use the existing `cryptography`/
+`secrets_config` keys respectively (both have a CWE overlap with their
+rule's own CWE, `secrets_config` exactly so — CWE-312 is in its seed
+list). `a05-webview-js-interface-kotlin` and
+`a01-pendingintent-mutable-kotlin` both use the existing `authorization`
+key as an approximate fit — neither CWE-749 nor CWE-926 is a textbook
+"authorization" CWE, but both vulnerabilities are fundamentally a missing
+trust/access boundary (an unauthenticated JS bridge; a hijackable
+cross-app Intent) closer to `authorization`'s "broken access control"
+shape than to any other existing key. Flagging here per the same
+"metadata label choice, not an ontology-file edit" convention this repo's
+`docs/AUTHORING.md` established for `code_quality` and
+`dependency_supply_chain`.
+
 ## Retrieval benchmark (Lodestone side)
 
 **CoIR** (Apache-2.0, ACL 2025) is the pick for code-search relevance — standardized qrels, MTEB/BEIR-compatible, covers CosQA/CodeSearchNet subsets. Lives with Lodestone's harness, not here. Avoid vendoring C-UDA data (CoSQA raw); consume it through CoIR.
@@ -245,7 +345,7 @@ commit the refreshed `docs/CORPUS.md` section alongside the new baseline.
 
 _Generated by `node scripts/scorecard.mjs` from `corpus/baselines/*.json` — rerun after any `--update-baseline` and commit both together._
 
-Rule corpus: **75** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/` combined per pack).
+Rule corpus: **86** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep/` combined per pack).
 
 ### By corpus
 
@@ -262,7 +362,7 @@ _Recall/F1 are n/a per pack: the scorer attributes false negatives at the corpus
 
 | Pack | Rules | TP (all corpora) | FP (all corpora) | Precision |
 |---|---|---|---|---|
-| owasp | 39 | 525 | 62 | 0.894 |
+| owasp | 50 | 525 | 62 | 0.894 |
 | framework | 17 | 0 | 0 | n/a |
 | slop | 13 | 0 | 0 | n/a |
 | secrets | 6 | 0 | 0 | n/a |

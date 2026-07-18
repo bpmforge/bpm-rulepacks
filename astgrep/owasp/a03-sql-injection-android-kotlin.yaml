@@ -1,0 +1,36 @@
+id: bpm-owasp-a03-sql-injection-android-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: $DB.rawQuery($A + $B, $ARGS)
+    - pattern: $DB.rawQuery($A + $B)
+    - pattern: $DB.execSQL($A + $B)
+    - pattern: $STMT.executeQuery($A + $B)
+    - pattern: $STMT.execute($A + $B)
+    - pattern: $STMT.executeUpdate($A + $B)
+    - pattern: $CONN.prepareStatement($A + $B)
+    - pattern: $EM.createNativeQuery($A + $B)
+    - pattern: $DB.rawQuery($SQL, $ARGS)
+    - pattern: $DB.execSQL($SQL)
+constraints:
+  SQL:
+    regex: '\$\{'
+message: >
+  A SQL/SQLite query is built by concatenating a variable into the query
+  text — either with `+` or a Kotlin string-template interpolation
+  (`${...}`) — instead of using bind parameters (OWASP A03:2021, CWE-89:
+  SQL Injection). This covers the Android SQLiteDatabase idiom
+  (rawQuery/execSQL), plain JDBC (Statement/PreparedStatement text built
+  before binding), and JPA's createNativeQuery. Use the `?`/positional
+  placeholder form with a `selectionArgs` array (SQLiteDatabase) or bound
+  parameters (`setString`/named params) instead of building the SQL
+  string by hand.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [89]
+  owasp: "A03:2021"
+  confidence: high
+  concept: sql_database
+  since: "0.1.0"

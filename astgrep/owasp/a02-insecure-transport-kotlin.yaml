@@ -1,0 +1,26 @@
+id: bpm-owasp-a02-insecure-transport-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: override fun checkServerTrusted($$$ARGS) {}
+    - pattern: override fun checkClientTrusted($$$ARGS) {}
+    - pattern: HostnameVerifier { $$$PARAMS -> true }
+message: >
+  A TLS trust check is stubbed out to accept everything (OWASP A02:2021,
+  CWE-295: Improper Certificate Validation): an empty-bodied
+  X509TrustManager.checkServerTrusted/checkClientTrusted override, or a
+  HostnameVerifier lambda that always returns true. Either disables
+  certificate or hostname validation entirely, letting any
+  attacker-controlled TLS endpoint (a rogue wifi AP, a compromised proxy)
+  perform a man-in-the-middle attack undetected. Delegate to the platform
+  default TrustManager/HostnameVerifier, or pin the specific certificate
+  you expect — never accept unconditionally.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [295]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"

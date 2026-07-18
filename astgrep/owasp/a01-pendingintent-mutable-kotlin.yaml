@@ -1,0 +1,30 @@
+id: bpm-owasp-a01-pendingintent-mutable-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: PendingIntent.getActivity($CTX, $REQ, $INTENT, $FLAGS)
+    - pattern: PendingIntent.getService($CTX, $REQ, $INTENT, $FLAGS)
+    - pattern: PendingIntent.getBroadcast($CTX, $REQ, $INTENT, $FLAGS)
+constraints:
+  FLAGS:
+    not:
+      regex: 'FLAG_IMMUTABLE'
+message: >
+  A PendingIntent is created without PendingIntent.FLAG_IMMUTABLE (OWASP
+  A01:2021, CWE-926: Improper Export of Android Application Components).
+  A mutable PendingIntent handed to another app (a notification action, a
+  widget, an AlarmManager callback) lets that app fill in or overwrite the
+  wrapped Intent's action/component/extras before it fires — "PendingIntent
+  hijacking" — letting a malicious app redirect the Intent to launch an
+  arbitrary component with the originating app's identity/permissions. Add
+  PendingIntent.FLAG_IMMUTABLE (or FLAG_MUTABLE only if the receiver
+  genuinely needs to fill in extras, and even then prefer immutable).
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [926]
+  owasp: "A01:2021"
+  confidence: medium
+  concept: authorization
+  since: "0.1.0"

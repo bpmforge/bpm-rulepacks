@@ -1,0 +1,30 @@
+id: bpm-owasp-a03-command-injection-kotlin
+language: kotlin
+severity: warning
+rule:
+  any:
+    - pattern: Runtime.getRuntime().exec($CMD)
+    - pattern: $RT.exec($CMD)
+    - pattern: ProcessBuilder($CMD).start()
+  not:
+    any:
+      - pattern: Runtime.getRuntime().exec("$LITERAL")
+      - pattern: $RT.exec("$LITERAL")
+      - pattern: ProcessBuilder("$LITERAL").start()
+message: >
+  A non-literal value is passed to Runtime.exec() or
+  ProcessBuilder(...).start() (OWASP A03:2021, CWE-78: OS Command
+  Injection). If any part of the command is user- or intent-controlled,
+  an attacker can inject shell metacharacters or additional arguments to
+  run arbitrary commands with the app's privileges. Never build a shell
+  command from external input; use ProcessBuilder with a fixed executable
+  and a strict argument list (no shell interpretation), or avoid the
+  subprocess entirely.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [78]
+  owasp: "A03:2021"
+  confidence: medium
+  concept: command_execution
+  since: "0.1.0"

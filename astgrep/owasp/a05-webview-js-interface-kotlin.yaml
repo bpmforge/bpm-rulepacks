@@ -1,0 +1,24 @@
+id: bpm-owasp-a05-webview-js-interface-kotlin
+language: kotlin
+severity: warning
+rule:
+  pattern: $WEBVIEW.addJavascriptInterface($OBJ, $NAME)
+message: >
+  WebView.addJavascriptInterface() exposes a native object's public
+  methods to any JavaScript running in the WebView (OWASP A05:2021,
+  CWE-749: Exposed Dangerous Method or Function). If the WebView ever
+  loads untrusted or attacker-influenced content (an ad, a redirect, a
+  compromised CDN asset), that page's JavaScript can call the bridge's
+  methods directly — on API < 17 this is trivial remote code execution via
+  reflection, and even on modern API levels it is a wide native attack
+  surface handed to web content. Only add a JS interface to a WebView that
+  exclusively loads content you fully control, annotate exposed methods
+  with @JavascriptInterface, and keep the bridge's surface minimal.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [749]
+  owasp: "A05:2021"
+  confidence: medium
+  concept: authorization
+  since: "0.1.0"
