@@ -1,0 +1,29 @@
+id: bpm-owasp-a05-xxe-csharp
+language: cs
+severity: warning
+rule:
+  any:
+    - pattern:
+        context: '$X.DtdProcessing = DtdProcessing.Parse;'
+        selector: assignment_expression
+    - pattern:
+        context: '$X.XmlResolver = new XmlUrlResolver();'
+        selector: assignment_expression
+message: >
+  XmlReaderSettings/XmlDocument is explicitly configured to process DTDs
+  (DtdProcessing.Parse) or to resolve external entities via
+  XmlUrlResolver (OWASP A05:2021, CWE-611: Improper Restriction of XML
+  External Entity Reference). An attacker-supplied XML document can then
+  declare an external entity that reads local files, performs SSRF, or
+  exhausts memory/CPU ("billion laughs"). Leave DtdProcessing at its
+  default (Prohibit) or set it explicitly, and set XmlResolver = null (or
+  omit it — null is the framework default on modern .NET) so external
+  entities are never resolved.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [611]
+  owasp: "A05:2021"
+  confidence: high
+  concept: input_validation
+  since: "0.1.0"

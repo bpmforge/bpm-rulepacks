@@ -1,0 +1,27 @@
+id: bpm-owasp-a02-weak-cipher-csharp
+language: cs
+severity: warning
+rule:
+  any:
+    - pattern: new DESCryptoServiceProvider()
+    - pattern: new TripleDESCryptoServiceProvider()
+    - pattern:
+        context: '$X.Mode = CipherMode.ECB;'
+        selector: assignment_expression
+message: >
+  A broken symmetric cipher (DES/TripleDES) is instantiated, or a cipher's
+  mode is explicitly set to ECB (OWASP A02:2021, CWE-327: Use of a Broken
+  or Risky Cryptographic Algorithm). DES/3DES have a 56/112-bit effective
+  key space, both practically brute-forceable today; ECB mode encrypts
+  identical plaintext blocks to identical ciphertext blocks regardless of
+  the underlying cipher's strength, leaking structure (the classic
+  "ECB penguin"). Use AES with CBC (with a random IV and MAC) or an AEAD
+  mode (GCM/ChaCha20-Poly1305) instead.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"

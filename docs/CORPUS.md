@@ -354,6 +354,111 @@ shape than to any other existing key. Flagging here per the same
 `docs/AUTHORING.md` established for `code_quality` and
 `dependency_supply_chain`.
 
+### C# / .NET rule authoring — no pinned corpus yet (W1-14, 2026-07-18)
+
+Engine choice was verified live before authoring at scale, per this file's
+established convention: `ast-grep 0.44.1` parses `.cs` under the language id
+`cs` (not `csharp` — `ast-grep --lang csharp` errors "not supported"; `cs` is
+the correct tree-sitter grammar id) and `opengrep 1.25.0` parses `.cs` under
+`languages: [csharp]`, including `mode: taint` (confirmed live with a
+`Request.QueryString[...]` → `Process.Start(...)` taint flow before any rule
+was written). Ten rules were authored, one per CWE anchor covering the
+ticket's named .NET idioms: `astgrep/owasp/` gets seven structural rules —
+`a02-weak-hash-csharp` (CWE-327/328, `MD5.Create()`/`SHA1.Create()`/
+`MD5CryptoServiceProvider`/`SHA1CryptoServiceProvider`), `a02-weak-cipher-
+csharp` (CWE-327, `DESCryptoServiceProvider`/`TripleDESCryptoServiceProvider`
+or an explicit `Mode = CipherMode.ECB`), `a02-insecure-random-csharp`
+(CWE-330, `new Random().Next(...).ToString()` assigned into a
+security-named variable — same VAR-regex-constrained approach as
+`a02-insecure-random-swift`, since `System.Random` is legitimately used for
+non-security randomness far more often than not), `a03-sql-injection-csharp`
+(CWE-89, `SqlCommand`'s query text built via string concatenation or
+interpolation, at either the constructor or a later `CommandText`
+assignment), `a05-xxe-csharp` (CWE-611, explicit `DtdProcessing.Parse` or
+`XmlResolver = new XmlUrlResolver()`), `a08-insecure-deserialization-csharp`
+(CWE-502, `BinaryFormatter`/`LosFormatter`/`JavaScriptSerializer` +
+`SimpleTypeResolver` instantiation), and `a02-weak-tls-csharp` (CWE-295, a
+`ServerCertificateCustomValidationCallback`/`ServerCertificateValidationCallback`
+hardcoded to unconditionally return `true`). `packs/owasp/` gets three
+opengrep `mode: taint` rules — `a03-command-injection-csharp` (CWE-78,
+`Request.QueryString`/`Form`/`Params` → `Process.Start`),
+`a03-path-traversal-csharp` (CWE-22, same sources →
+`File.ReadAllText`/`OpenRead`/`Open`/`FileStream`), and `a03-xss-csharp`
+(CWE-79, same sources → `Response.Write`/`Html.Raw`). All ten carry
+`provenance: authored` (written from the CWE definitions and real
+ADO.NET/System.Security.Cryptography/System.Xml/System.Web idioms, not
+ported from any external ruleset). 20 new fixtures (`.vuln.cs`/`.ok.cs`
+pairs) were RED/GREEN-verified; `npm run check` is green at **208 passed, 0
+failed, 0 skipped** (repo-wide, all packs) and `score-selftest` still holds
+precision=recall=1.000.
+
+Three authoring lessons worth recording:
+
+1. **`kind`/`pattern` metavariable constraints are not directly
+   composable in ast-grep's `constraints:` block** — `constraints: {ARG:
+   {kind: binary_expression}}` silently matched nothing (no error, just
+   zero findings), and `has:` nested inside the same `pattern:` map as a
+   sibling key hard-errors ("Rule must specify a set of AST kinds to
+   match"). The working shape, used throughout `a03-sql-injection-csharp`,
+   is `all: [{pattern: ...}, {has: {kind: ..., stopBy: end}}]` — a
+   top-level `all` combinator with the structural match and the
+   descendant-kind check as separate sibling rules, not a constraint on
+   the captured metavariable itself. This is the same "kind constraint"
+   landmine for the next author who wants to discriminate an argument's
+   *shape* (literal vs. concatenation vs. interpolation) rather than its
+   text.
+2. **A bare assignment-expression pattern (`$X.Prop = $VAL`) does not
+   parse as a standalone ast-grep rule** — `pattern: $CMD.CommandText =
+   $ARG` errors the same "must specify AST kinds" message the `kind`
+   constraint issue above does, because top-level `=` is ambiguous between
+   several C# node kinds. The fix, already used elsewhere in this repo for
+   the `a07-cookie-insecure-flag` TS rule, is the `pattern: {context: '...
+   ;', selector: assignment_expression}` form (a full, syntactically valid
+   statement as context, with an explicit `selector` disambiguating which
+   node kind the pattern binds to) — used for every assignment-shaped C#
+   rule here (`a05-xxe-csharp`'s two patterns, `a02-weak-cipher-csharp`'s
+   ECB-mode pattern, `a02-weak-tls-csharp`'s callback patterns).
+3. **opengrep's C# grammar rejects an ellipsis-metavariable
+   (`$$$REST`) in some multi-argument sink patterns.** `File.Open($SINK,
+   $$$REST)` fails with "Invalid pattern for C#: Stdlib.Parsing.Parse_error"
+   even though the structurally similar `new SqlCommand($ARG, $$$REST)`
+   parses fine under ast-grep — this is an opengrep-specific C# parser gap,
+   not a general ellipsis problem. `a03-path-traversal-csharp` works around
+   it with a fixed single metavariable per argument position
+   (`File.Open($SINK, $MODE)`) instead of `$$$REST`, which also fully
+   worked for `new FileStream($SINK, $MODE)`. The Java/Kotlin
+   taint-over-approximation lesson (a method-call result on tainted input
+   stays tainted; only a literal-per-branch allowlist actually clears
+   taint) reproduces identically in C# — `a03-path-traversal-csharp`,
+   `a03-command-injection-csharp`, and `a03-xss-csharp`'s `.ok` fixtures
+   all use an `if/else` literal allowlist rather than a sanitizer-call
+   attempt, which failed on the first try for the same reason documented
+   for Java/Kotlin above.
+
+**No pinned C# corpus exists yet** even though NIST Juliet/SARD 1.3 (the
+"Standardized set" table above) lists C# as one of its four languages —
+`corpus.lock` currently only has a `juliet-cpp` entry (W2-04), no
+`juliet-csharp` entry, so this ticket's `write_scope` (rules + fixtures
+only) is validated by RED/GREEN fixture pairs alone, not a corpus baseline.
+Wiring a `juliet-csharp` corpus entry (same zip, different manifest
+subfolder) and re-running `corpus/adapters/juliet.mjs` against it is a
+genuine, low-effort follow-on ticket — the adapter and fetch machinery
+already exist and are corpus-agnostic within Juliet's own zip.
+
+Concept-ontology note: `a05-xxe-csharp` and `a03-xss-csharp` use the
+existing `input_validation` key (CWE-79 is in its seed list; CWE-611 has no
+closer existing key — XML/entity parsing isn't represented by any current
+concept, so `input_validation`'s "untrusted input reaching a parser/sink
+without validation" framing is the nearest approximate fit, same
+"metadata label choice, not an ontology-file edit" convention as
+`code_quality`/`dependency_supply_chain` above). All other seven rules map
+to an exact existing key: `cryptography` (weak-hash, weak-cipher,
+insecure-random, weak-tls — CWE-295 is not in `cryptography`'s seed CWE
+list, but its `terms` include `tls`/`x509`/`certificate` directly, an exact
+term-level fit even without an exact CWE-list entry), `sql_database`
+(sql-injection), `deserialization` (insecure-deserialization), and
+`command_execution` (command-injection).
+
 ## Retrieval benchmark (Lodestone side)
 
 **CoIR** (Apache-2.0, ACL 2025) is the pick for code-search relevance — standardized qrels, MTEB/BEIR-compatible, covers CosQA/CodeSearchNet subsets. Lives with Lodestone's harness, not here. Avoid vendoring C-UDA data (CoSQA raw); consume it through CoIR.
