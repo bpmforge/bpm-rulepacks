@@ -1,0 +1,31 @@
+id: bpm-framework-rails-html-safe-user-input
+language: ruby
+severity: warning
+rule:
+  any:
+    - pattern: $X.html_safe
+    - pattern: raw($X)
+constraints:
+  X:
+    not:
+      kind: string
+message: >
+  A non-constant value is marked html_safe or passed through raw() (Rails
+  framework knowledge, CWE-79: Cross-Site Scripting). Both bypass Rails'
+  default output escaping — ERB renders the string verbatim instead of
+  HTML-encoding it. If the value can carry attacker-controlled data
+  (params, a user-editable model attribute, an uploaded document), this is
+  direct HTML/script injection. Let Rails auto-escape the value, or
+  explicitly sanitize with a scoped allow-list (e.g. Rails::Html::Sanitizer)
+  before marking it safe.
+# Primary source: Rails Security Guide (Cross-Site Scripting §, html_safe /
+# raw) + OWASP XSS Prevention Cheat Sheet.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [79]
+  owasp: "A03:2021"
+  framework: rails
+  confidence: medium
+  concept: input_validation
+  since: "0.1.0"

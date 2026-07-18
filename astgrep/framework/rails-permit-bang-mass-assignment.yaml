@@ -1,0 +1,26 @@
+id: bpm-framework-rails-permit-bang-mass-assignment
+language: ruby
+severity: warning
+rule:
+  pattern: $X.permit!
+message: >
+  permit! is called on an ActionController::Parameters object (Rails
+  framework knowledge, CWE-915: Improperly Controlled Modification of
+  Dynamically-Determined Object Attributes — a mass-assignment design
+  flaw). Unlike permit(:field1, :field2), permit! marks every key in the
+  params hash as permitted, including ones the form/API never intended to
+  expose. An attacker can add extra fields to the request body (e.g.
+  `role`, `admin`, `account_id`) and have them mass-assigned onto the
+  model. Replace permit! with an explicit allow-list of the fields the
+  action is supposed to accept.
+# Primary source: Rails Security Guide (Mass Assignment §) + OWASP A04:2021
+# guidance.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [915]
+  owasp: "A04:2021"
+  framework: rails
+  confidence: high
+  concept: authorization
+  since: "0.1.0"

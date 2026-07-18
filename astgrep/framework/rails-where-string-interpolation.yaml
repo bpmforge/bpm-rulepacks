@@ -1,0 +1,29 @@
+id: bpm-framework-rails-where-string-interpolation
+language: ruby
+severity: warning
+rule:
+  pattern: where($X)
+  has:
+    kind: interpolation
+    stopBy: end
+message: >
+  where() is called with a string built via Ruby interpolation (Rails
+  framework knowledge, CWE-89: SQL Injection). ActiveRecord only
+  parameterizes a where() call when the value is passed as a separate
+  bind argument (`where("name = ?", name)`) or as a hash
+  (`where(name: name)`); a `#{...}` interpolation is expanded before
+  ActiveRecord ever sees the string, so it lands in the generated SQL
+  unescaped. If the interpolated value can carry attacker-controlled data,
+  this is direct SQL injection. Use a `?`/named placeholder with a bind
+  argument, or the hash form, instead of interpolating into the SQL string.
+# Primary source: Rails Security Guide (SQL Injection §) + OWASP SQL
+# Injection Prevention Cheat Sheet.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [89]
+  owasp: "A03:2021"
+  framework: rails
+  confidence: high
+  concept: sql_database
+  since: "0.1.0"
