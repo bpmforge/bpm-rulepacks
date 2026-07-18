@@ -1,0 +1,26 @@
+id: bpm-owasp-a02-weak-hash-swift
+language: swift
+severity: warning
+rule:
+  any:
+    - pattern: Insecure.MD5.hash($$$ARGS)
+    - pattern: Insecure.SHA1.hash($$$ARGS)
+    - pattern: CC_MD5($$$ARGS)
+    - pattern: CC_SHA1($$$ARGS)
+message: >
+  A digest is computed with MD5 or SHA-1 via CryptoKit's Insecure namespace
+  or the legacy CommonCrypto CC_MD5/CC_SHA1 functions (OWASP A02:2021,
+  CWE-327: Use of a Broken or Risky Cryptographic Algorithm / CWE-328: Use
+  of Weak Hash). Both algorithms are cryptographically broken (practical
+  collision attacks) and must not be used for password hashing, digital
+  signatures, or integrity checks. Use SHA256/SHA384/SHA512 from CryptoKit
+  for integrity/signing, and a password-hashing KDF (never a bare digest)
+  for credential storage.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327, 328]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"
