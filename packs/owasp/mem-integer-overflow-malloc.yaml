@@ -1,0 +1,25 @@
+rules:
+  - id: bpm-owasp-mem-integer-overflow-malloc
+    languages: [c, cpp]
+    severity: WARNING
+    message: >
+      malloc() or realloc() is sized by multiplying two values inline
+      (CWE-190: Integer Overflow or Wraparound). If either operand is
+      attacker-influenced (a count read from a file, network message, or
+      config) the multiplication can wrap around size_t and return a small
+      value, so the allocation succeeds but is far smaller than the code
+      expects — every subsequent write through it is then a heap buffer
+      overflow (CWE-122). calloc(nmemb, size) takes the two factors as
+      separate arguments and internally rejects a multiplication that would
+      overflow; prefer it over malloc(a * b), or explicitly check that
+      a > SIZE_MAX / b before multiplying.
+    pattern-either:
+      - pattern: malloc($A * $B)
+      - pattern: realloc($P, $A * $B)
+    metadata:
+      license: proprietary
+      provenance: authored
+      cwe: [190]
+      confidence: medium
+      concept: memory_safety
+      since: "0.1.0"

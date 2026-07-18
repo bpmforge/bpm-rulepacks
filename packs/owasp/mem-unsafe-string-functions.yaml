@@ -1,0 +1,33 @@
+rules:
+  - id: bpm-owasp-mem-unsafe-string-functions
+    languages: [c, cpp]
+    severity: ERROR
+    message: >
+      An unbounded C string/buffer function (strcpy, strcat, sprintf, gets,
+      or scanf with a bare "%s") is used (CWE-120: Buffer Copy without
+      Checking Size of Input / CWE-787: Out-of-bounds Write / CWE-242: Use
+      of Inherently Dangerous Function). None of these functions take a
+      destination-buffer size, so a source longer than the destination
+      overflows it — gets() in particular has no bound at all and was
+      removed from the C11 standard library for exactly this reason. Use
+      the bounded equivalents instead: strncpy/strlcpy or snprintf for
+      strcpy, strncat/strlcat for strcat, snprintf for sprintf, fgets for
+      gets, and a width specifier (e.g. "%63s" for a 64-byte buffer) for
+      scanf.
+    pattern-either:
+      - pattern: strcpy($DST, $SRC)
+      - pattern: strcat($DST, $SRC)
+      - pattern: sprintf($DST, $FMT, ...)
+      - pattern: gets($DST)
+      - patterns:
+          - pattern: scanf($FMT, $BUF)
+          - metavariable-regex:
+              metavariable: $FMT
+              regex: '^"%s"$'
+    metadata:
+      license: proprietary
+      provenance: authored
+      cwe: [120, 787, 242]
+      confidence: high
+      concept: memory_safety
+      since: "0.1.0"
