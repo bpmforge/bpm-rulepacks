@@ -1,0 +1,167 @@
+name: Nightly corpus scoring
+
+# Tier-2 regression gate (docs/TESTING.md): runs the SAST engines over the
+# pinned, labeled corpora and fails if precision/recall drops vs the
+# committed baseline in corpus/baselines/<name>.json. NEVER passes
+# --update-baseline here — a new baseline is a deliberate, human-reviewed
+# commit (see docs/CORPUS.md), not something nightly CI writes silently.
+#
+# Corpora scored here are exactly the ones with a committed baseline today
+# (owasp-benchmark-java, ossf-cve-benchmark, juice-shop, juliet-cpp — see
+# docs/CORPUS.md "Baselines established"). owasp-benchmark-python,
+# cwe-bench-java, and dsvw are pinned in corpus/corpus.lock but have no
+# adapter/labels/baseline yet, so there is nothing to gate against; they
+# are intentionally left out of this workflow (not silently capped — see
+# "Corpora not yet in nightly" in docs/CORPUS.md) until a future ticket
+# ships their adapters.
+#
+# Juliet (juliet-cpp) is the one large download (~146MB zip, ~64k test
+# cases) in the fleet. Rather than silently excluding it, it runs in its
+# own job with a generous timeout and a cache of the extracted corpus
+# keyed on corpus.lock's pinned sha256, so only the first nightly run (or
+# a corpus.lock bump) pays the full download+extract cost.
+
+on:
+  schedule:
+    # 03:17 UTC nightly — off-peak, matches docs/TESTING.md "nightly / pre-release".
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      corpus:
+        description: 'Score only this corpus (blank = all corpora with a baseline)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  CORPUS_DIR: ${{ github.workspace }}/.corpus-cache
+
+jobs:
+  score:
+    name: score (${{ matrix.corpus }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        corpus: [ossf-cve-benchmark, owasp-benchmark-java, juice-shop]
+    # workflow_dispatch with a `corpus` input scopes the run to one matrix entry;
+    # every other trigger (schedule, blank input) runs the full matrix. Applied
+    # per-step (not job-level `if`) because the `matrix` context isn't available
+    # in a job-level `if` condition.
+    env:
+      RUN_THIS_CORPUS: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.corpus == '' || github.event.inputs.corpus == matrix.corpus }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # No `npm install`/`npm ci` step: package.json has zero dependencies
+      # (every script here is node: built-ins only; opengrep/ast-grep are
+      # separate binaries installed below) and there is no committed
+      # package-lock.json for `npm ci` to consume.
+
+      - name: Install Opengrep
+        if: ${{ env.RUN_THIS_CORPUS == 'true' }}
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.opengrep/cli/latest" >> "$GITHUB_PATH"
+
+      - name: Install ast-grep
+        if: ${{ env.RUN_THIS_CORPUS == 'true' }}
+        run: npm install -g @ast-grep/cli
+
+      - name: Verify engines
+        if: ${{ env.RUN_THIS_CORPUS == 'true' }}
+        run: |
+          opengrep --version
+          ast-grep --version
+
+      - name: Cache corpus (${{ matrix.corpus }})
+        if: ${{ env.RUN_THIS_CORPUS == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CORPUS_DIR }}/${{ matrix.corpus }}
+          key: corpus-${{ matrix.corpus }}-${{ hashFiles('corpus/corpus.lock') }}
+
+      - name: Fetch corpus (${{ matrix.corpus }})
+        if: ${{ env.RUN_THIS_CORPUS == 'true' }}
+        run: node corpus/fetch.mjs ${{ matrix.corpus }}
+
+      - name: Score vs committed baseline (regression gate — no --update-baseline)
+        if: ${{ env.RUN_THIS_CORPUS == 'true' }}
+        run: npm run score -- ${{ matrix.corpus }}
+
+  score-juliet:
+    name: score (juliet-cpp)
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.corpus == '' || github.event.inputs.corpus == 'juliet-cpp' }}
+    runs-on: ubuntu-latest
+    # ~146MB zip + ~64k extracted files. Cached by sha256 after the first run
+    # (see the cache step below), but the timeout stays generous for a cold cache.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # No `npm install`/`npm ci` step: package.json has zero dependencies
+      # (every script here is node: built-ins only; opengrep/ast-grep are
+      # separate binaries installed below) and there is no committed
+      # package-lock.json for `npm ci` to consume.
+
+      - name: Install Opengrep
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.opengrep/cli/latest" >> "$GITHUB_PATH"
+
+      - name: Install ast-grep
+        run: npm install -g @ast-grep/cli
+
+      - name: Verify engines
+        run: |
+          opengrep --version
+          ast-grep --version
+
+      - name: Cache Juliet corpus (keyed on pinned sha256)
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CORPUS_DIR }}/juliet-cpp
+          key: corpus-juliet-cpp-${{ hashFiles('corpus/corpus.lock') }}
+
+      - name: Fetch juliet-cpp
+        run: node corpus/fetch.mjs juliet-cpp
+
+      - name: Score vs committed baseline (regression gate — no --update-baseline)
+        run: npm run score -- juliet-cpp
+
+  scorecard:
+    name: refresh scorecard summary
+    needs: [score, score-juliet]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # Reads the committed corpus/baselines/*.json (not this run's — nightly
+      # never writes a baseline) and posts the scorecard to the job summary.
+      # docs/CORPUS.md's scorecard section is refreshed by a human/agent
+      # running `node scripts/scorecard.mjs` locally as part of the PR that updates a
+      # baseline — CI never commits back to the repo.
+      - name: Post scorecard to job summary
+        run: node scripts/scorecard.mjs --stdout >> "$GITHUB_STEP_SUMMARY"
