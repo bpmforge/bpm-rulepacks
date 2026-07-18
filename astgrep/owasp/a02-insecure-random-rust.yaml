@@ -1,0 +1,40 @@
+# ast-grep rule — insecure random generation in Rust.
+# Two structurally-discriminable shapes, both always the antipattern:
+#   1. rand::rngs::SmallRng — the rand crate's own docs state it is "not a
+#      good choice" and "should not be used for cryptographic purposes" (it
+#      trades security margin for speed), so any use is flagged regardless
+#      of the seed.
+#   2. StdRng::seed_from_u64 with a literal numeric seed — a hardcoded seed
+#      makes every run of the program produce the identical "random"
+#      sequence, defeating the point of using a CSPRNG-backed RNG at all.
+#      Seeding from a variable (OS entropy, another CSPRNG) stays clean.
+id: bpm-owasp-a02-insecure-random-rust
+language: rust
+severity: warning
+rule:
+  any:
+    - pattern: SmallRng::seed_from_u64($SEED1)
+    - pattern: SmallRng::from_seed($SEED1)
+    - pattern: SmallRng::from_entropy()
+    - pattern: StdRng::seed_from_u64($SEED2)
+constraints:
+  SEED2:
+    regex: "^[0-9]"
+message: >
+  A non-cryptographic or predictably-seeded RNG is used where a security-
+  sensitive value (token, session key, password reset code) may be
+  generated (OWASP A02:2021, CWE-330: Use of Insufficiently Random Values).
+  rand::rngs::SmallRng is explicitly documented as unsuitable for
+  cryptographic use, and a StdRng seeded from a literal constant produces
+  the same "random" sequence on every run — both are predictable to an
+  attacker. Use rand::rngs::OsRng or a CSPRNG-backed StdRng seeded from
+  OS entropy (`StdRng::from_entropy()` or `StdRng::from_rng(OsRng)`) for
+  anything security-sensitive.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [330]
+  owasp: "A02:2021"
+  confidence: medium
+  concept: cryptography
+  since: "0.1.0"

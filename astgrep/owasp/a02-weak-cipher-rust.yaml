@@ -1,0 +1,38 @@
+# ast-grep rule — weak/broken symmetric cipher use in Rust.
+# Structural: DES/3DES construction (the `des` crate's Des/TdesEde3 types)
+# and the one-arg `Encryptor::<Alg>::new(key)` / `Decryptor::<Alg>::new(key)`
+# construction shape (the `ecb` crate's KeyInit::new(key) — ECB mode, any
+# algorithm) are always the antipattern regardless of context. The one-arg
+# constraint is load-bearing, not incidental: `cbc::Encryptor`/`Decryptor`
+# (a non-broken mode) share the same type names but use the two-arg
+# KeyIvInit::new(key, iv) constructor, so this pattern only matches the
+# ECB shape — verified against a passing `cbc::Encryptor::new(key, iv)`
+# case in the .ok fixture. A bare (unqualified) `use ecb::Encryptor;` call
+# site is caught the same way as a fully-qualified `ecb::Encryptor::` one,
+# since ast-grep matches by syntactic shape, not import resolution.
+id: bpm-owasp-a02-weak-cipher-rust
+language: rust
+severity: warning
+rule:
+  any:
+    - pattern: Des::new($X)
+    - pattern: TdesEde3::new($X)
+    - pattern: Encryptor::<$ALG>::new($X)
+    - pattern: Decryptor::<$ALG>::new($X)
+message: >
+  A DES/3DES cipher (the `des` crate's Des/TdesEde3) or an ECB-mode block
+  cipher (the `ecb` crate's Encryptor/Decryptor, which repeats the same
+  ciphertext block for identical plaintext blocks regardless of the
+  underlying algorithm) is constructed (OWASP A02:2021, CWE-327: Use of a
+  Broken or Risky Cryptographic Algorithm). DES's 56-bit key is brute-
+  forceable and ECB leaks plaintext structure through ciphertext pattern
+  repetition. Use an authenticated mode (aes-gcm's Aes256Gcm, or
+  chacha20poly1305) instead.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"
