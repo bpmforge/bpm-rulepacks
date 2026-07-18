@@ -28,6 +28,37 @@ CVEfixes (MIT, polyglot, SQLite from Zenodo) is a **recall spot-check** option f
 
 `corpus/fetch.mjs` refuses any lock entry missing an SPDX `license` or marked `vendor:true`. The GPL corpora carry `vendor:false` and are cloned to `$CORPUS_DIR` at test time — their code never enters this repo. Only the **normalized labels** (`corpus/labels/*.json`, derived by our adapters) are committed, and those are our own work product, not the corpus code.
 
+## Baselines established
+
+### owasp-benchmark-java (W2-01, 2026-07-18)
+
+Pipeline proven end-to-end on the first real corpus: `npm run corpus:fetch
+owasp-benchmark-java` clones the pinned SHA (GPL-2.0, USE-only, never
+vendored) into `$CORPUS_DIR`; `corpus/adapters/owasp-benchmark-java.mjs`
+reads `expectedresults-1.2.csv` and emits **2,740 normalized labels**
+(1,415 `vuln` / 1,325 `safe`) to `corpus/labels/owasp-benchmark-java.json`;
+`npm run score -- owasp-benchmark-java --update-baseline` ran both the
+opengrep (`packs/`) and ast-grep (`astgrep/`) rule sets over the corpus and
+committed `corpus/baselines/owasp-benchmark-java.json`.
+
+**Baseline: TP=0, FP=0, FN=1415 → precision=n/a, recall=0.000, F1=n/a.**
+
+This is an honest, expected zero, not a bug: every current opengrep rule
+declares `languages: [typescript, javascript]` and every ast-grep rule
+targets `python`, `ruby`, `typescript`, or `tsx` — **the corpus has zero
+Java-targeted rules to score against**. A direct `opengrep scan --config
+packs $CORPUS_DIR/owasp-benchmark-java` confirms 0 findings across all
+5,707 git-tracked files. The 0.000 recall measures "no Java rule coverage
+yet," not rule quality. See `corpus/labels/owasp-benchmark-java.md` for the
+full adapter/verification notes.
+
+**Gap this baseline reveals:** Java rule coverage is now the visible
+backlog item — the corpus, labels, scorer, and baseline machinery are all
+proven and ready; the baseline will move only when a future ticket
+authors Java-targeted opengrep/ast-grep rules (out of this ticket's
+`write_scope`, which is adapter + labels + baseline only — rules are
+authored, tested, and scored in separate tickets by design).
+
 ## Retrieval benchmark (Lodestone side)
 
 **CoIR** (Apache-2.0, ACL 2025) is the pick for code-search relevance — standardized qrels, MTEB/BEIR-compatible, covers CosQA/CodeSearchNet subsets. Lives with Lodestone's harness, not here. Avoid vendoring C-UDA data (CoSQA raw); consume it through CoIR.
