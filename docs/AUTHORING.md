@@ -119,6 +119,41 @@ neither has a more specific CWE anchor; this is a style/quality signal, not
 a security one, so the CWE field is illustrative rather than load-bearing
 for these two rules.
 
+## ANTI_SLOP coverage — R-21..R-30 (W1-03)
+
+Ported from `~/Code/bpm-opencode-experts/agents/shared/ANTI_SLOP_RULES.md`.
+This batch is the 2025-2026 additions (Categories 6-8: Supply Chain Slop,
+Structural Slop, Vendoring & Provenance Slop) — like R-11..R-20, most of
+these rely on state a single-file AST rule cannot see: a package registry
+response, a second file's contents, cross-service trust boundaries, or a
+whole-tree consistency judgment. 4/10 ported (the shapes with an
+always-true structural core), matching the honest-count discipline used
+for R-11..R-20 — this **completes the R-01..R-30 map** across the three
+coverage tables in this file.
+
+| Rule | Title | Status | Notes |
+|------|-------|--------|-------|
+| R-21 | Hallucinated package names (slopsquatting) | **tool-tier, deferred** | Requires a live registry lookup (`npm view`/`pip show` returning 404, or weekly-download count) — no static rule can make a network call. Same reasoning as `hallucinatedDeps`/`dependencyRisk` (W1-06): this is the Dependency Auditor agent's job (registry/OSV feed), not a pattern rule. |
+| R-22 | Architectural privilege escalation paths | **LLM-tier** | "Service A reuses Service B's admin client without authorization" is a trust-boundary judgment across multiple services/files — the AI reused a client it saw in context; no single-file AST shape distinguishes an authorized cross-service call from an unauthorized one. |
+| R-23 | Elevated credential leakage rate | ported (ast-grep) | `astgrep/slop/hardcoded-env-fallback.yaml` — narrowed to the fallback-specific shape `process.env.$SECRET_LIKE \|\| "literal"` (env-var name constrained to secret-shaped keywords so `process.env.PORT \|\| "3000"` stays clean). The plainer "hardcoded secret literal assignment" half of R-23 is already covered by `packs/secrets/hardcoded-credentials.yaml` (a different pack, W1-06) — not re-ported here to avoid a duplicate rule across pack boundaries. |
+| R-24 | Docstring inflation (Logic Density Ratio) | **LLM-tier** | LDR is a ratio of two line/node counts (doc lines vs. logic lines) compared against a threshold (< 1.0) — ast-grep's rule DSL has no count/measure/ratio operator, only structural matching. Comparable to R-19 (a metric over a whole construct, not a fixed shape). |
+| R-25 | Phantom imports | **tool-tier, deferred** | The rule's own enforcement line names the real tool: `eslint --rule 'no-unused-vars'` / `pylint W0611`. Detecting "this import binding has zero other occurrences in the file" needs whole-file reference counting per identifier, the same shape as R-07 (single-use helper functions) and `dead-exports` (W1-06) — no fixed pattern discriminates without that count. |
+| R-26 | Disconnected pipelines (dead scaffolding) | **LLM-tier** | Every example in the rule text (event emitter never subscribed, queue never consumed, middleware never mounted) is a registration/consumption pair that normally lives in *different files* (e.g. middleware defined in one module, `app.use()` in `server.js`) — the whole point is cross-file wiring, structurally identical to why R-08/R-17 stayed LLM-tier. |
+| R-27 | Unimplemented stubs as features | ported (ast-grep) | `astgrep/slop/unimplemented-stub-throw.yaml` — narrowed to the canonical shape the rule's own grep signal names: `throw new Error("not implemented")` and near variants (`unimplemented`, `todo...implement`). This exact throw is never legitimate production code, so the `.ok` fixture stays clean just by implementing the function — no context needed, unlike the broader "any stub" judgment (which would need to know if it's on a declared TODO branch). |
+| R-28 | LLM output consumed without validation | ported (opengrep, taint) | `packs/slop/llm-output-unvalidated-sink.yaml` — source `$LLM.generate(...)`, sinks `db.execute($SINK)` / `eval($SINK)` (single-arg shape only — a validated call with extra args, e.g. `db.execute(validated.sql, validated.params)`, doesn't match the sink pattern's arity, so the `.ok` fixture stays clean structurally, matching how a09/a10 constrain their sinks). Source→sink dataflow, so this is the taint-mode case the "which engine" section calls for, not ast-grep. |
+| R-29 | Prose padding (local LLM output slop) | ported (opengrep, generic) | `packs/slop/prose-padding.yaml` — two rules for the two always-bad phrase classes the ANTI_SLOP text itself enumerates as filler regardless of context: confidence-hedging openers ("it's worth noting that", "one might consider") and fake-specificity citations ("industry best practices" with no named source). Unlike R-13 (what-comments), there's no legitimate use of these exact phrases in a findings report, so the `.ok`-fixture test passes cleanly. `language: generic` + `pattern-regex` (not ast-grep — this is prose text in `.md` deliverables, not a programming-language AST), matching the existing `packs/secrets/` convention for text-shaped rules. |
+| R-30 | Library-shaped reimplementation (silent fork) | **tool-tier, deferred** | The rule's own Detection line names an existing validator: `scripts/validators/validate-vendor-provenance.sh` (in `bpm-opencode-experts`, out of this repo's scope). Checking a "we use library X" claim requires diffing a vendored directory against the real upstream artifact and cross-referencing a `VENDORED.md` manifest against what's actually on disk — cross-file/cross-repo by definition, not a single-file pattern. |
+
+Concept-ontology note (continued): R-23 reuses `concept: secrets_config`
+(existing key). R-27 and R-29 reuse `concept: code_quality` (the same new
+key R-06/R-14/R-16 introduced, still not in the ontology seed file itself).
+R-28 is the one rule in this batch with an exact ontology fit: `concept:
+llm_ai` already exists in `concept-ontology-seed.yaml` with `cwe: [1426]`
+(Improper Validation of Generative AI Output) as its anchor; this rule's
+own `cwe: [74]` (general injection, CWE anchor for the specific
+db.execute/eval sink shape) is used on the rule itself since the concept
+key, not the rule metadata, is what carries the ontology-level CWE.
+
 ## OWASP coverage — A06-A10 (W1-05)
 
 Ported from `~/Code/bpm-opencode-experts/agents/security/OWASP_METHODOLOGY.md`
