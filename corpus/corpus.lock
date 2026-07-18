@@ -71,13 +71,13 @@
     {
       "name": "juliet-cpp",
       "type": "zip",
-      "url": "https://samate.nist.gov/SARD/downloads/test-suites/2022-06-14-juliet-c-cplusplus-v1-3.zip",
-      "sha256": "PENDING-first-download",
+      "url": "https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-c-cplusplus-v1-3.zip",
+      "sha256": "ada9d7e1c323d283446df3f55bdee0d00bda1fed786785fe98764d58688f38eb",
       "license": "CC0-1.0",
       "vendor": true,
       "languages": ["c", "cpp"],
       "labels": "manifest.xml (file+line+CWE) → adapters/juliet.mjs",
-      "notes": "Public domain backbone. sha256 to be pinned on first fetch (set PIN_SHA256=1). ~146MB."
+      "notes": "Public domain backbone. sha256 to be pinned on first fetch (set PIN_SHA256=1). ~146MB (64,099 test cases). W2-04 (2026-07-18): original corpus.lock URL (2022-06-14-juliet-c-cplusplus-v1-3.zip, dated) 404s; SARD now serves the 2017-10-01-juliet-test-suite-for-c-cplusplus-v1-3.zip build at /SARD/test-suites/112 (verified via the live page's own download link, HTTP 200, content-length 152957342). URL fixed here, not merely retried."
     }
   ]
 }
