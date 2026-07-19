@@ -1,0 +1,32 @@
+id: bpm-owasp-a05-insecure-transport-java
+language: java
+severity: warning
+rule:
+  any:
+    - pattern: public void checkServerTrusted($$$ARGS) { }
+    - pattern: public void checkClientTrusted($$$ARGS) { }
+    - pattern: |
+        new HostnameVerifier() {
+          public boolean verify($$$ARGS) {
+            return true;
+          }
+        }
+message: >
+  TLS trust or hostname verification is stubbed out to accept everything
+  (OWASP A05:2021, CWE-295: Improper Certificate Validation): an
+  empty-bodied X509TrustManager.checkServerTrusted/checkClientTrusted
+  override, or a HostnameVerifier whose verify() unconditionally returns
+  true. Either disables certificate or hostname validation entirely,
+  letting any attacker-controlled TLS endpoint (a rogue wifi AP, a
+  compromised proxy, DNS spoofing) perform a man-in-the-middle attack
+  undetected. Delegate to the platform default TrustManager/
+  HostnameVerifier, or pin the specific certificate/hostname you expect —
+  never accept unconditionally.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [295]
+  owasp: "A05:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"
