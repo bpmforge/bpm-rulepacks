@@ -1,0 +1,25 @@
+# ast-grep rule — ANTI_SLOP R-16: emojis in code comments (Swift port).
+# Structural (AST): a comment containing a character in the common emoji
+# Unicode blocks (Misc Symbols & Pictographs, Emoticons, Transport, Supplemental
+# Symbols & Pictographs, Misc Symbols & Dingbats, Misc Symbols & Arrows). This
+# shape is always the antipattern regardless of context — an emoji in a source
+# comment is a near-certain AI giveaway; emojis belong in commit messages or
+# PR descriptions, never in source. No dataflow needed.
+id: bpm-slop-emoji-in-comments-swift
+language: swift
+severity: warning
+rule:
+  kind: comment
+  regex: "[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{2B00}-\\x{2BFF}]"
+message: >
+  emoji in source comment (ANTI_SLOP R-16) — emojis in code comments are a
+  near-certain AI giveaway to experienced reviewers ("generated, not
+  authored"). Remove it; emojis belong in commit messages or PR descriptions
+  where the author intentionally placed them.
+metadata:
+  license: public-teaser
+  provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-16"
+  cwe: [1078]
+  confidence: high
+  concept: code_quality
+  since: "0.1.0"
