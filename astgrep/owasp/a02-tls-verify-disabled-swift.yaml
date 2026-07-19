@@ -1,0 +1,29 @@
+id: bpm-owasp-a02-tls-verify-disabled-swift
+language: swift
+severity: warning
+rule:
+  pattern: |
+    func urlSession(_ $SESSION: URLSession, didReceive $CHALLENGE: URLAuthenticationChallenge, completionHandler: $HTYPE) {
+      completionHandler(.useCredential, URLCredential(trust: $TRUST))
+    }
+message: >
+  A URLSessionDelegate's didReceive challenge:completionHandler: override
+  unconditionally accepts the server's TLS credential with no check on the
+  challenge's authentication method or the certificate/trust chain (OWASP
+  A02:2021, CWE-295: Improper Certificate Validation). This disables
+  certificate validation for every request this session makes, letting a
+  network attacker (rogue wifi AP, malicious VPN profile, ARP spoofing)
+  perform a man-in-the-middle attack with a self-signed or attacker-issued
+  certificate undetected. Evaluate the trust with
+  SecTrustEvaluateWithError (or compare against a pinned certificate/public
+  key) before calling completionHandler(.useCredential, ...), and call
+  completionHandler(.cancelAuthenticationChallenge, nil) when evaluation
+  fails.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [295]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"
