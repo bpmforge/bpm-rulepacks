@@ -1,0 +1,27 @@
+# ast-grep rule — ANTI_SLOP R-14: step-by-step narration blocks (Rust port).
+# Structural (AST): a `line_comment` matching the canonical "Step N:" numbered
+# narration form. Rust's `line_comment` kind covers `//`/`///`/`//!` (see
+# emoji-in-comments-rust.yaml for the split-kind note vs. C/Python); "Step N:"
+# narration is only ever written with plain `//`, never a doc comment, so
+# `line_comment` alone is sufficient (no need to also match `block_comment`).
+# This shape is always the antipattern regardless of context — a comment
+# that narrates "Step 1 / Step 2 / Step 3" is never a WHY-comment, it is
+# prose scaffolding for an algorithm that should be named clearly instead.
+# No dataflow needed; the comment text alone is the signal.
+id: bpm-slop-step-by-step-narration-rust
+language: rust
+severity: warning
+rule:
+  kind: line_comment
+  regex: "^//\\s*Step\\s+\\d+\\s*[:.]"
+message: >
+  step-by-step narration comment (ANTI_SLOP R-14) — numbered "Step N:" prose
+  blocks mean the code needs narration to be understood. Fix the code (name
+  things well enough that the sequence is self-evident), not the comments.
+metadata:
+  license: public-teaser
+  provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-14"
+  cwe: [1078]
+  confidence: high
+  concept: code_quality
+  since: "0.1.0"
