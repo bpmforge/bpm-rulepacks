@@ -1,0 +1,31 @@
+id: bpm-framework-rails-render-inline-user-input
+language: ruby
+severity: warning
+rule:
+  pattern: "render(inline: $X)"
+constraints:
+  X:
+    not:
+      kind: string
+message: >
+  render(inline: ...) is called with a non-literal value (Rails
+  framework knowledge, CWE-1336: Improper Neutralization of Special
+  Elements Used in a Template Engine). `inline:` compiles its argument
+  as an ERB template string at request time — if the value carries
+  attacker-controlled data (params, a stored model attribute), the
+  attacker can inject ERB tags (`<%= ... %>`) and get arbitrary Ruby
+  code execution, not just markup injection. Never build an inline
+  template from request data; render a named view/partial instead, or
+  interpolate the dynamic value as template *data* (a local) rather
+  than as the template *source*.
+# Primary source: Rails Security Guide (Rendering §, dynamic render
+# paths) + OWASP Server-Side Template Injection guidance + CWE-1336.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [1336]
+  owasp: "A03:2021"
+  framework: rails
+  confidence: medium
+  concept: input_validation
+  since: "0.1.0"
