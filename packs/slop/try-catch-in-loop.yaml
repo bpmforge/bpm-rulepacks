@@ -1,0 +1,35 @@
+rules:
+  - id: bpm-slop-try-catch-in-loop
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >
+      try/catch inside a tight loop (ANTI_SLOP R-02) — JIT compilers cannot
+      optimize functions with try/catch in hot loops (5-20x slowdown measured
+      in production). Wrap the loop, not each iteration; validate before the
+      loop if items can be invalid.
+    patterns:
+      - pattern: |
+          try { ... } catch ($ERR) { ... }
+      - pattern-either:
+          - pattern-inside: |
+              for (...) { ... }
+          - pattern-inside: |
+              for (const $X of $Y) { ... }
+          - pattern-inside: |
+              for (let $X of $Y) { ... }
+          - pattern-inside: |
+              for (const $X in $Y) { ... }
+          - pattern-inside: |
+              for (let $X in $Y) { ... }
+          - pattern-inside: |
+              while ($COND) { ... }
+          - pattern-inside: |
+              do { ... } while ($COND)
+    metadata:
+      license: public-teaser
+      provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-02"
+      cwe: [1050]
+      confidence: medium
+      concept: logging_audit
+      since: "0.1.0"
+
