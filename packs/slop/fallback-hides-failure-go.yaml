@@ -1,0 +1,31 @@
+rules:
+  - id: bpm-slop-fallback-hides-failure-go
+    languages: [go]
+    severity: WARNING
+    message: >
+      An `if err != nil` branch returns a fallback value with the error
+      dropped or replaced by `nil` (ANTI_SLOP R-10) — Go idiom is `if err !=
+      nil { return ..., err }`. Returning a default/zero value instead of
+      propagating the error means the caller cannot distinguish "no data"
+      from "the call failed"; monitoring misses the failure.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              if $ERR != nil {
+                return $DEFAULT
+              }
+          - pattern: |
+              if $ERR != nil {
+                return $DEFAULT, nil
+              }
+      - pattern-not: |
+          if $ERR != nil {
+            return $ERR
+          }
+    metadata:
+      license: public-teaser
+      provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-10"
+      cwe: [390]
+      confidence: high
+      concept: logging_audit
+      since: "0.1.0"
