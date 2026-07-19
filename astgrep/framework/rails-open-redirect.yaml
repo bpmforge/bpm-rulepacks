@@ -1,0 +1,29 @@
+id: bpm-framework-rails-open-redirect
+language: ruby
+severity: warning
+rule:
+  pattern: redirect_to($X)
+  has:
+    pattern: params[$Y]
+    stopBy: end
+message: >
+  redirect_to() is called with a redirect target read directly from
+  params (Rails framework knowledge, CWE-601: URL Redirection to
+  Untrusted Site ('Open Redirect')). An attacker crafts a link to this
+  app with a query parameter pointing at an attacker-controlled URL;
+  victims trust the link because it starts with the real app's domain,
+  and land on a phishing page after the redirect. Pass `allow_other_host:
+  false` (Rails 7+) to reject cross-host targets, or validate the value
+  against an allow-list of known internal paths/route names before
+  redirecting.
+# Primary source: Rails Security Guide (Redirection §) + OWASP
+# Unvalidated Redirects and Forwards Cheat Sheet + CWE-601.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [601]
+  owasp: "A01:2021"
+  framework: rails
+  confidence: medium
+  concept: input_validation
+  since: "0.1.0"
