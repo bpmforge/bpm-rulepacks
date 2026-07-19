@@ -1,0 +1,21 @@
+rules:
+  - id: bpm-owasp-a07-hardcoded-connection-string-vbnet
+    languages: [generic]
+    severity: ERROR
+    message: >
+      A database connection string with a cleartext Password/Pwd value is
+      embedded directly in VB.NET source (OWASP A07:2021, CWE-798: Use of
+      Hard-coded Credentials). Anyone with source or binary access
+      (decompiled) recovers the live credential. Move the connection
+      string to a secrets manager or `ConfigurationManager.ConnectionStrings`
+      backed by an encrypted `<connectionStrings configSource="...">` file
+      or environment variable, and rotate the exposed credential.
+    pattern-regex: (?i)(password|pwd)\s*=\s*[^;"']{6,}\s*;
+    metadata:
+      license: proprietary
+      provenance: authored
+      cwe: [798]
+      owasp: "A07:2021"
+      confidence: medium
+      concept: secrets_config
+      since: "0.1.0"

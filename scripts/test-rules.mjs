@@ -22,7 +22,14 @@ const ROOT = new URL('..', import.meta.url).pathname;
 let pass = 0, fail = 0, skip = 0;
 
 function runOpengrep(config, file) {
-  const out = execFileSync('opengrep', ['scan', '--config', config, '--json', file],
+  // --scan-unknown-extensions: fixtures like web.config (real ASP.NET config
+  // filename, extension .config) aren't in opengrep's built-in extension→
+  // language map even though `languages: [xml]` parses them fine content-wise
+  // (verified: opengrep show supported-languages lists xml; --scan-unknown-extensions
+  // makes it apply rule language instead of skipping the file). Harmless for
+  // every other fixture extension already in the built-in map (.cs, .vb, .js, ...).
+  const out = execFileSync('opengrep',
+    ['scan', '--config', config, '--scan-unknown-extensions', '--json', file],
     { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   return (JSON.parse(out).results || []).length;
 }
