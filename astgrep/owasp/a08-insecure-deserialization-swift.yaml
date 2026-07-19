@@ -1,0 +1,29 @@
+id: bpm-owasp-a08-insecure-deserialization-swift
+language: swift
+severity: warning
+rule:
+  any:
+    - pattern: 'NSKeyedUnarchiver.unarchiveObject(with: $DATA)'
+    - pattern: 'NSKeyedUnarchiver.unarchiveObject(withFile: $PATH)'
+    - pattern: '$UNARCHIVER.requiresSecureCoding = false'
+message: >
+  NSKeyedUnarchiver is used via a deprecated unarchiveObject(with:/withFile:)
+  call, or an unarchiver instance has requiresSecureCoding explicitly
+  disabled (OWASP A08:2021, CWE-502: Deserialization of Untrusted Data).
+  Neither path constrains which classes the archive is allowed to
+  instantiate — a crafted archive (a tampered file, pasteboard payload, or
+  network response) can drive NSKeyedUnarchiver into instantiating
+  attacker-chosen classes and invoking their initWithCoder:, a documented
+  Apple/App Store code-execution gadget-chain vector. Use
+  NSKeyedUnarchiver.unarchivedObject(ofClass:from:) (or
+  unarchivedObject(ofClasses:from:)) which enforces secure coding and an
+  explicit allowed-class list, or leave requiresSecureCoding at its true
+  default when constructing NSKeyedUnarchiver(forReadingFrom:) directly.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [502]
+  owasp: "A08:2021"
+  confidence: high
+  concept: deserialization
+  since: "0.1.0"
