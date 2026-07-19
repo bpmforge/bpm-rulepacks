@@ -1,0 +1,11 @@
+using Microsoft.AspNetCore.Mvc;
+
+public class AccountController : Controller
+{
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdateEmail(string newEmail)
+    {
+        return Ok();
+    }
+}
