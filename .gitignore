@@ -5,3 +5,6 @@ out.sarif
 
 # transient worker worktrees
 .claude/worktrees/
+
+# code-search-mcp index
+.code-search/

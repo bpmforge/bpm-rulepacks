@@ -12,10 +12,26 @@ rules:
       overflow (CWE-122). calloc(nmemb, size) takes the two factors as
       separate arguments and internally rejects a multiplication that would
       overflow; prefer it over malloc(a * b), or explicitly check that
-      a > SIZE_MAX / b before multiplying.
-    pattern-either:
-      - pattern: malloc($A * $B)
-      - pattern: realloc($P, $A * $B)
+      a > SIZE_MAX / b before multiplying. (Both operands as literal
+      integer constants, e.g. malloc(4 * 8), cannot overflow from runtime
+      input and are excluded — but malloc(count * sizeof(T)) still fires:
+      sizeof(...) is not a literal, and count is exactly the canonical
+      attacker-controlled CWE-190 shape.)
+    patterns:
+      - pattern-either:
+          - pattern: malloc($A * $B)
+          - pattern: realloc($P, $A * $B)
+      - pattern-not:
+          patterns:
+            - pattern-either:
+                - pattern: malloc($A * $B)
+                - pattern: realloc($P, $A * $B)
+            - metavariable-regex:
+                metavariable: $A
+                regex: '^[0-9]+$'
+            - metavariable-regex:
+                metavariable: $B
+                regex: '^[0-9]+$'
     metadata:
       license: proprietary
       provenance: authored

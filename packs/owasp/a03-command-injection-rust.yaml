@@ -6,6 +6,12 @@ rules:
     pattern-sources:
       - pattern: $REQ.query_string()
       - pattern: $REQ.match_info().get($X)
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $SAN.parse::<$T>()
+          - metavariable-regex:
+              metavariable: $T
+              regex: '^(u8|u16|u32|u64|u128|usize|bool)$'
     pattern-sinks:
       - pattern: Command::new($SINK)
       - pattern: $CMD.arg($SINK)
@@ -16,7 +22,8 @@ rules:
       the command to an unintended executable, path, or flag (e.g. supplying
       a value starting with `-` to pivot to arbitrary flags). Validate the
       value against a strict allowlist of expected arguments before passing
-      it to Command::new/.arg.
+      it to Command::new/.arg, or type-coerce it (e.g. `.parse::<u32>()`) so
+      only the constrained shape can reach the sink.
     metadata:
       license: proprietary
       provenance: authored
