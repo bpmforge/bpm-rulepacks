@@ -16,6 +16,15 @@ rules:
           - pattern: $APP.put($ROUTE, $HANDLER)
           - pattern: $APP.patch($ROUTE, $HANDLER)
           - pattern: $APP.delete($ROUTE, $HANDLER)
+      - metavariable-regex:
+          # Fastify's own convention (and this pack's fixtures) name the
+          # instance `fastify` -- the encapsulated-plugin parameter is
+          # documented that way. Anchored so it can't substring-match a name
+          # like `app`/`router`, which is how Express route registrations
+          # (app.get/router.get -- no schema concept in Express) were
+          # false-firing on this rule.
+          metavariable: $APP
+          regex: '^fastify$'
       - metavariable-pattern:
           metavariable: $ROUTE
           patterns:
@@ -50,6 +59,13 @@ rules:
           - pattern: $APP.put($ROUTE, $OPTS, $HANDLER)
           - pattern: $APP.patch($ROUTE, $OPTS, $HANDLER)
           - pattern: $APP.delete($ROUTE, $OPTS, $HANDLER)
+      - metavariable-regex:
+          # See the 2-arg rule above: anchored to the Fastify instance's
+          # conventional name so Express's app.get/router.get (a 3rd
+          # positional arg there is Express middleware, not a Fastify
+          # options/schema object) doesn't false-fire.
+          metavariable: $APP
+          regex: '^fastify$'
       - metavariable-pattern:
           metavariable: $ROUTE
           patterns:
