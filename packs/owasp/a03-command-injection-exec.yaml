@@ -1,0 +1,24 @@
+rules:
+  - id: bpm-owasp-a03-command-injection-exec
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >
+      Shell command built from a non-literal expression is passed to exec(),
+      which runs it through a shell (OWASP A03:2021, CWE-78: OS Command
+      Injection). If any part of $CMD is user-controlled, an attacker can inject
+      shell metacharacters. Use execFile()/spawn() with an argument array
+      instead of a shell string, or strictly allowlist the input.
+    patterns:
+      - pattern-either:
+          - pattern: child_process.exec($CMD)
+          - pattern: exec($CMD)
+      - pattern-not: child_process.exec("...")
+      - pattern-not: exec("...")
+    metadata:
+      license: proprietary
+      provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A03"
+      cwe: [78]
+      owasp: "A03:2021"
+      confidence: medium
+      concept: command_execution
+      since: "0.1.0"
