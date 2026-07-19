@@ -1,0 +1,24 @@
+# ast-grep rule — ANTI_SLOP R-14: step-by-step narration blocks (Ruby
+# variant). Structural (AST): a line comment matching the canonical
+# "Step N:" numbered narration form, using Ruby's `#` comment marker (same
+# marker and comment node kind as the Python variant). Always the
+# antipattern regardless of context — a comment narrating "Step 1 / Step 2
+# / Step 3" is never a WHY-comment, it is prose scaffolding for an
+# algorithm that should be named clearly instead.
+id: bpm-slop-step-by-step-narration-ruby
+language: ruby
+severity: warning
+rule:
+  kind: comment
+  regex: "^#\\s*Step\\s+\\d+\\s*[:.]"
+message: >
+  step-by-step narration comment (ANTI_SLOP R-14) — numbered "Step N:" prose
+  blocks mean the code needs narration to be understood. Fix the code (name
+  things well enough that the sequence is self-evident), not the comments.
+metadata:
+  license: public-teaser
+  provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-14"
+  cwe: [1078]
+  confidence: high
+  concept: code_quality
+  since: "0.1.0"
