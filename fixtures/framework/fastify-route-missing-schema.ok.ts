@@ -13,8 +13,8 @@ export function registerUserRoutes(fastify: FastifyInstance) {
       },
     },
     async (req, reply) => {
-      const user = await db.createUser(req.body);
-      reply.send(user);
+      await db.createUser(req.body);
+      reply.send({ status: "created" });
     },
   );
 }

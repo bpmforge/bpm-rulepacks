@@ -1,0 +1,68 @@
+rules:
+  - id: bpm-framework-fastify-route-missing-schema
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >
+      A Fastify route handler is registered with no `schema` option (Fastify
+      framework knowledge, CWE-20: Improper Input Validation). Without a JSON
+      Schema, Fastify performs no request validation or response
+      serialization allow-listing — malformed or attacker-controlled bodies,
+      query strings, and params reach the handler unchecked. Add a `schema`
+      option (`body`/`querystring`/`params`/`response`) to the route.
+    patterns:
+      - pattern-either:
+          - pattern: $APP.get($ROUTE, $HANDLER)
+          - pattern: $APP.post($ROUTE, $HANDLER)
+          - pattern: $APP.put($ROUTE, $HANDLER)
+          - pattern: $APP.patch($ROUTE, $HANDLER)
+          - pattern: $APP.delete($ROUTE, $HANDLER)
+      - metavariable-pattern:
+          metavariable: $ROUTE
+          patterns:
+            - pattern: '"..."'
+      - metavariable-pattern:
+          metavariable: $HANDLER
+          patterns:
+            - pattern-not: '"..."'
+    metadata:
+      license: proprietary
+      provenance: authored
+      cwe: [20]
+      framework: fastify
+      confidence: medium
+      concept: input_validation
+      since: "0.1.0"
+  - id: bpm-framework-fastify-route-missing-schema-3arg
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >
+      A Fastify route handler is registered with an options object that has no
+      `schema` key (Fastify framework knowledge, CWE-20: Improper Input
+      Validation). Without a JSON Schema, Fastify performs no request
+      validation or response serialization allow-listing — malformed or
+      attacker-controlled bodies, query strings, and params reach the handler
+      unchecked. Add a `schema` option (`body`/`querystring`/`params`/`response`)
+      to the route.
+    patterns:
+      - pattern-either:
+          - pattern: $APP.get($ROUTE, $OPTS, $HANDLER)
+          - pattern: $APP.post($ROUTE, $OPTS, $HANDLER)
+          - pattern: $APP.put($ROUTE, $OPTS, $HANDLER)
+          - pattern: $APP.patch($ROUTE, $OPTS, $HANDLER)
+          - pattern: $APP.delete($ROUTE, $OPTS, $HANDLER)
+      - metavariable-pattern:
+          metavariable: $ROUTE
+          patterns:
+            - pattern: '"..."'
+      - metavariable-pattern:
+          metavariable: $OPTS
+          patterns:
+            - pattern-not: '{ ..., schema: $S, ... }'
+    metadata:
+      license: proprietary
+      provenance: authored
+      cwe: [20]
+      framework: fastify
+      confidence: medium
+      concept: input_validation
+      since: "0.1.0"
