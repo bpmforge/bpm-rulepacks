@@ -32,3 +32,17 @@ export function registerExpressRoutes(app: Express, router: Router) {
     res.json({ status: "created" });
   });
 }
+
+// 3-arg Express form (route, middleware, handler) -- regression for the
+// -3arg Fastify rule, which used the same unconstrained $APP receiver.
+// authMiddleware is not `{ ..., schema: $S, ... }`, so absent the
+// `^fastify$` guard this would have false-fired as a "missing schema".
+function authMiddleware(req: any, res: any, next: () => void) {
+  next();
+}
+
+export function registerExpressAdminRoutes(app: Express) {
+  app.get("/admin", authMiddleware, (req, res) => {
+    res.json({ status: "ok" });
+  });
+}
