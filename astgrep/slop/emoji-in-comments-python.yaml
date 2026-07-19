@@ -1,0 +1,24 @@
+# ast-grep rule — ANTI_SLOP R-16: emojis in code comments (Python variant).
+# Structural (AST): a comment containing a character in the common emoji
+# Unicode blocks. Same regex as the TS/JS variant — an emoji in a source
+# comment is always the antipattern regardless of language or context; only
+# the comment node's tree-sitter `kind` differs per grammar (Python's `#`
+# comments still parse to a `comment` node), so this is a straight port.
+id: bpm-slop-emoji-in-comments-python
+language: python
+severity: warning
+rule:
+  kind: comment
+  regex: "[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{2B00}-\\x{2BFF}]"
+message: >
+  emoji in source comment (ANTI_SLOP R-16) — emojis in code comments are a
+  near-certain AI giveaway to experienced reviewers ("generated, not
+  authored"). Remove it; emojis belong in commit messages or PR descriptions
+  where the author intentionally placed them.
+metadata:
+  license: public-teaser
+  provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-16"
+  cwe: [1078]
+  confidence: high
+  concept: code_quality
+  since: "0.1.0"
