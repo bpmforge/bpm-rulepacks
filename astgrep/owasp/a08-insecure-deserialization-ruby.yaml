@@ -1,0 +1,29 @@
+id: bpm-owasp-a08-insecure-deserialization-ruby
+language: ruby
+severity: warning
+rule:
+  any:
+    - pattern: Marshal.load($DATA)
+    - pattern: YAML.load($DATA)
+    - pattern: YAML.unsafe_load($DATA)
+message: >
+  Marshal.load(), YAML.load(), or YAML.unsafe_load() is called on
+  externally-sourced data (OWASP A08:2021, CWE-502: Deserialization of
+  Untrusted Data). Marshal.load reconstructs arbitrary Ruby objects
+  (including instantiating classes and invoking their initializers) from
+  the byte stream with no type restriction; YAML.load/unsafe_load parse
+  the full YAML tag set, which can instantiate dangerous classes like
+  Gem::Requirement or ActiveSupport's deserialization gadgets — both are
+  established Ruby remote-code-execution gadget chains (e.g. the Rails
+  CVE-2013-0156 class of bug). If the input can be influenced by a
+  client (cookie, cache entry, uploaded file), this is remote code
+  execution. Use JSON.parse for a data-only format, or YAML.safe_load
+  with an explicit permitted_classes allowlist.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [502]
+  owasp: "A08:2021"
+  confidence: high
+  concept: deserialization
+  since: "0.1.0"

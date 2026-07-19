@@ -1,0 +1,24 @@
+id: bpm-owasp-a02-weak-cipher-ruby
+language: ruby
+severity: warning
+rule:
+  pattern: OpenSSL::Cipher.new($CIPHER)
+constraints:
+  CIPHER:
+    regex: '(?i)des|rc4'
+message: >
+  OpenSSL::Cipher.new() is constructed with a DES or RC4 cipher name
+  (OWASP A02:2021, CWE-327: Use of a Broken or Risky Cryptographic
+  Algorithm). DES's 56-bit key is brute-forceable in hours on commodity
+  hardware, and RC4 has known keystream biases that break its
+  confidentiality guarantee — both are deprecated by NIST. Use
+  OpenSSL::Cipher.new('aes-256-gcm') (an authenticated mode) with a
+  random per-message IV instead.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327]
+  owasp: "A02:2021"
+  confidence: high
+  concept: cryptography
+  since: "0.1.0"

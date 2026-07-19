@@ -1,0 +1,31 @@
+id: bpm-owasp-a02-weak-hash-ruby
+language: ruby
+severity: warning
+rule:
+  any:
+    - pattern: Digest::MD5.hexdigest($X)
+    - pattern: Digest::MD5.digest($X)
+    - pattern: Digest::MD5.base64digest($X)
+    - pattern: Digest::SHA1.hexdigest($X)
+    - pattern: Digest::SHA1.digest($X)
+    - pattern: Digest::SHA1.base64digest($X)
+constraints:
+  X:
+    regex: '(?i)pass|pwd|secret'
+message: >
+  Digest::MD5 or Digest::SHA1 is used to hash a password-shaped value
+  (OWASP A02:2021, CWE-327: Use of a Broken or Risky Cryptographic
+  Algorithm / CWE-328: Use of a Weak Hash). Both are fast, unsalted
+  digests designed for speed, not password storage — GPU cracking rigs
+  test billions of candidates per second against them, and MD5/SHA1 are
+  also cryptographically broken for collision resistance. Use bcrypt
+  (has_secure_password / BCrypt::Password) or Argon2, and let the
+  library manage salting, instead of a bare hash function.
+metadata:
+  license: proprietary
+  provenance: authored
+  cwe: [327, 328]
+  owasp: "A02:2021"
+  confidence: medium
+  concept: cryptography
+  since: "0.1.0"
