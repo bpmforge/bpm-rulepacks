@@ -18,3 +18,17 @@ export function registerUserRoutes(fastify: FastifyInstance) {
     },
   );
 }
+
+// Express, not Fastify: no `schema` concept exists on Express routes, so
+// this must NOT be flagged by a Fastify-specific rule (regression for the
+// app.get/router.get false-positive — the receiver is `app`, not `fastify`).
+import type { Express, Router } from "express";
+
+export function registerExpressRoutes(app: Express, router: Router) {
+  app.get("/users", (req, res) => {
+    res.json({ status: "ok" });
+  });
+  router.post("/users", (req, res) => {
+    res.json({ status: "created" });
+  });
+}
