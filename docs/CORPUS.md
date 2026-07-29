@@ -1069,3 +1069,47 @@ _Recall/F1 are n/a per pack: the scorer attributes false negatives at the corpus
 | secrets | 6 | 0 | 0 | n/a |
 
 <!-- SCORECARD:END -->
+
+## Regression gating — how it actually works (2026-07-28)
+
+`scripts/score-corpus.mjs` exits **1** when precision or recall falls more than
+`--threshold` (default 0.05) below the committed baseline. That logic has been correct
+since it was written. Two things nevertheless let a real regression sit undetected for ten
+days, and both are now fixed:
+
+1. **The workflow only ran nightly.** 64 `packs/` commits landed between 2026-07-18 and
+   07-28 without the gate ever running at the moment a rule changed. `push` and
+   `pull_request` triggers (paths-filtered to `packs/**`, `corpus/**`, the scorer, and the
+   workflow itself) are now wired.
+2. **GitHub Actions is budget-blocked.** Every nightly run since at least 2026-07-24 failed
+   in ~3s with *"The job was not started because an Actions budget is preventing further
+   use."* — so even the nightly gate scored nothing. **A gate you cannot run is not a gate.**
+   `npm run gate` (`scripts/gate-corpus.mjs`) runs every baselined corpus locally and is
+   immune to Actions billing. Run it before pushing rule changes.
+
+### Do NOT rebaseline a regression
+
+`corpus/baselines/*.json` is a regression detector, not a quality target. When the gate goes
+red the fix is the rule, not the baseline — rebaselining erases the only signal that
+something got worse. `--update-baseline` is for a *deliberate, human-reviewed* change in
+what the corpus measures (as when Juliet's safe labels were recovered and precision
+correctly fell 1.000 → 0.021 because the metric could finally fail).
+
+### Standing regression: owasp-benchmark-java
+
+**Currently red, deliberately left red.** Precision 0.894 → **0.793** (Δ **-0.101**) with
+**Δrecall +0.000** — the 64-commit rule expansion added false positives on Java and caught
+nothing new. Three of four corpora match their baselines exactly, so this is a genuine
+regression and not drift.
+
+Fixing it means finding the culprit among those commits; `perRule` in the baseline names
+per-rule `fp`/`tp` exactly as it identified the three C/C++ offenders
+(`mem-unsafe-string-functions` 700fp/18tp, `mem-integer-overflow-malloc` 130fp/**0tp**,
+`a07-hardcoded-connection-string-vbnet` 27fp/**0tp**).
+
+**Unverified caveat on the Juliet FP count:** the scorer matches on `file + line ±2`, which
+may inflate `fp` for `a07-hardcoded-connection-string-vbnet` (27) and
+`mem-integer-overflow-malloc` (130) by matching adjacent-but-unrelated statements. The 700
+from `mem-unsafe-string-functions` has a verified concrete example
+(`CWE114_..._connect_socket_01.c:145`, a `strcpy` under a `/* FIX: */` marker inside
+`goodG2B()`). Treat ~157 of the 857 as unconfirmed until an offset histogram is run.

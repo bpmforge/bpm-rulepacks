@@ -22,6 +22,17 @@ name: Nightly corpus scoring
 # a corpus.lock bump) pays the full download+extract cost.
 
 on:
+  # Rule changes gate on PUSH/PR, not only nightly. The nightly schedule alone
+  # meant 64 packs/ commits landed unmeasured between 2026-07-18 and 07-28,
+  # during which owasp-benchmark-java precision fell 0.894 -> 0.793 with ZERO
+  # recall gain. The gate itself was correct the whole time (score-corpus exits
+  # 1 on a >0.05 drop); nothing ever ran it at the moment a rule changed.
+  # Paths-filtered so unrelated commits don't burn Actions minutes.
+  push:
+    branches: [main]
+    paths: ['packs/**', 'corpus/**', 'scripts/score-corpus.mjs', '.github/workflows/corpus-scoring.yml']
+  pull_request:
+    paths: ['packs/**', 'corpus/**', 'scripts/score-corpus.mjs', '.github/workflows/corpus-scoring.yml']
   schedule:
     # 03:17 UTC nightly — off-peak, matches docs/TESTING.md "nightly / pre-release".
     - cron: '17 3 * * *'
