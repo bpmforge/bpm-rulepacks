@@ -28,6 +28,70 @@
       "exists": false,
       "advisories": [],
       "checkedAt": "2026-07-29"
+    },
+    "@modelcontextprotocol/sdk": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "@mozilla/readability": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "@types/jsdom": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "jsdom": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "playwright": {
+      "exists": true,
+      "advisories": [
+        {
+          "id": "GHSA-7mvr-c777-76hp",
+          "fixed": "1.55.1"
+        }
+      ],
+      "checkedAt": "2026-07-29"
+    },
+    "zod": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "@types/node": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "tsx": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "typescript": {
+      "exists": true,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    },
+    "vitest": {
+      "exists": true,
+      "advisories": [
+        {
+          "id": "GHSA-5xrq-8626-4rwp",
+          "fixed": "4.1.0"
+        },
+        {
+          "id": "GHSA-9crc-q9x8-hgqq",
+          "fixed": "1.6.1"
+        }
+      ],
+      "checkedAt": "2026-07-29"
     }
   }
 }
