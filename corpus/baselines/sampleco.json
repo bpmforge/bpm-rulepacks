@@ -1,11 +1,11 @@
 {
-  "tp": 6,
+  "tp": 12,
   "fp": 0,
-  "fn": 11,
+  "fn": 6,
   "precision": null,
-  "recall": 0.3125,
+  "recall": 0.625,
   "f1": null,
-  "covered": 5,
+  "covered": 10,
   "total": 16,
   "perRule": {
     "packs.secrets.bpm-secret-generic-assignment": {
@@ -16,6 +16,14 @@
       "tp": 1,
       "fp": 0
     },
+    "packs.owasp.bpm-owasp-a01-admin-route-missing-role-check": {
+      "tp": 1,
+      "fp": 0
+    },
+    "packs.framework.bpm-framework-express-route-body-no-validation": {
+      "tp": 1,
+      "fp": 0
+    },
     "packs.owasp.bpm-owasp-a03-sql-string-concat": {
       "tp": 2,
       "fp": 0
@@ -23,29 +31,21 @@
     "packs.slop.bpm-slop-empty-catch": {
       "tp": 1,
       "fp": 0
+    },
+    "detectors.MANIFEST-VULNERABLE-DEP": {
+      "tp": 2,
+      "fp": 0
+    },
+    "detectors.MANIFEST-HALLUCINATED-DEP": {
+      "tp": 1,
+      "fp": 0
+    },
+    "detectors.MANIFEST-PHANTOM-IMPORT": {
+      "tp": 1,
+      "fp": 0
     }
   },
   "missed": [
-    {
-      "file": "package.json",
-      "line": 11,
-      "cwe": [
-        "1357"
-      ],
-      "kind": "vuln",
-      "defect": "D3",
-      "note": "slopsquat dep json-safe-parse-ultra"
-    },
-    {
-      "file": "src/utils/format.js",
-      "line": 2,
-      "cwe": [
-        "1104"
-      ],
-      "kind": "vuln",
-      "defect": "D4",
-      "note": "phantom import currency-fmt, not in package.json"
-    },
     {
       "file": "src/routes/adminRoutes.js",
       "line": 6,
@@ -95,36 +95,6 @@
       "kind": "vuln",
       "defect": "D8",
       "note": "validateInvoice defined+exported, never called"
-    },
-    {
-      "file": "src/routes/adminRoutes.js",
-      "line": 16,
-      "cwe": [
-        "862"
-      ],
-      "kind": "vuln",
-      "defect": "D9",
-      "note": "admin route never checks role"
-    },
-    {
-      "file": "package.json",
-      "line": 9,
-      "cwe": [
-        "1104"
-      ],
-      "kind": "vuln",
-      "defect": "D10",
-      "note": "express 4.16.0, known CVEs"
-    },
-    {
-      "file": "src/routes/invoiceRoutes.js",
-      "line": 22,
-      "cwe": [
-        "20"
-      ],
-      "kind": "vuln",
-      "defect": "D11",
-      "note": "req.body straight to service, no validation"
     },
     {
       "file": "src/routes/authRoutes.js",
