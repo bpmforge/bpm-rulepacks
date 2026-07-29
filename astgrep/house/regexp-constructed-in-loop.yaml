@@ -1,0 +1,39 @@
+id: bpm-house-regexp-constructed-in-loop
+language: ts
+severity: warning
+message: >
+  A regular expression is compiled inside a loop, so the same pattern is
+  parsed and compiled again on every iteration. Regex compilation is not free —
+  it parses the pattern, builds a program, and defeats the engine's compiled-
+  regex cache when the source string is dynamic. Hoist the RegExp above the
+  loop when the pattern is loop-invariant, or build a Map of compiled patterns
+  once when it varies by key.
+rule:
+  all:
+    - pattern: "new RegExp($$$ARGS)"
+    - inside:
+        any:
+          - { kind: for_in_statement }
+          - { kind: for_statement }
+          - { kind: while_statement }
+          - { kind: do_statement }
+        stopBy: end
+metadata:
+  license: proprietary
+  provenance: "derived:quarry/PERF-regexp-in-loop"
+  cwe: [1050]
+  confidence: high
+  concept: code_quality
+  since: "0.2.0"
+  # From an LLM performance review of quarry:
+  #   src/extract/rank.ts:144 — a RegExp per query-term, inside a loop that is
+  #     itself nested inside a per-paragraph loop in the BM25 ranker
+  #   src/fetch/robots.ts:53  — every robots.txt rule recompiled on each
+  #     canFetch() call rather than once when the file is parsed
+  #
+  # KNOWN GAP, stated rather than papered over: this matches real loop
+  # STATEMENTS only. `terms.forEach(t => new RegExp(t))` is the same defect in
+  # a callback and is NOT caught. Adding callback iteration would also catch
+  # single-shot `.map()` calls where compiling once per element is correct, so
+  # it needs a separate rule with its own precision evidence, not a widened
+  # `any:` here.

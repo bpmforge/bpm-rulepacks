@@ -1,0 +1,51 @@
+id: bpm-house-sync-fs-in-async-fn
+language: ts
+severity: warning
+message: >
+  A synchronous filesystem call runs inside an async function. Sync I/O blocks
+  the entire event loop for its duration, so every other pending request,
+  timer and socket on this process stalls — which defeats the concurrency the
+  async function was written to provide. In a worker pool it means the pool
+  width buys nothing: the workers queue behind one blocking read. Use the
+  promise API (`fs/promises`) and await it.
+rule:
+  # Matched at the CALL SITE, not the function. An earlier draft patterned the
+  # enclosing function as `async function $F($$$P) { $$$B }` and matched
+  # nothing real: `export async function f(p: string): Promise<void>` has an
+  # export prefix and a return-type annotation, neither of which that pattern
+  # admits. Reporting the call is also the more useful location — it points at
+  # the blocking line rather than at the function containing it.
+  all:
+    - pattern: "$FN($$$ARGS)"
+    - regex: "^(readFileSync|writeFileSync|appendFileSync|mkdirSync|rmSync|unlinkSync|readdirSync|statSync|copyFileSync|renameSync|execSync|execFileSync|spawnSync)\\("
+    - inside:
+        any:
+          - { kind: function_declaration }
+          - { kind: arrow_function }
+          - { kind: method_definition }
+          - { kind: function_expression }
+        regex: "(^|\\s)async\\s"
+        stopBy: end
+metadata:
+  license: proprietary
+  provenance: "derived:quarry/PERF-sync-io-on-async-path"
+  cwe: [1050]
+  confidence: medium
+  concept: code_quality
+  since: "0.2.0"
+  # From an LLM performance review of quarry (src/fetch/cache.ts:67):
+  # mkdirSync + writeFileSync on the cache-write path, which sits directly in
+  # the async fetch pipeline and blocks the event loop on every cache miss
+  # regardless of how wide the worker pool is.
+  #
+  # THIS RULE DOES NOT CATCH THAT SITE, and the gap is worth being explicit
+  # about. cache.ts's `write()` is a SYNCHRONOUS function (`: void`) that an
+  # async caller invokes — the sync I/O and the `async` keyword are in
+  # different functions, so no single-function pattern can see it. Catching it
+  # needs a call graph: "a sync fs call transitively reachable from an async
+  # entry point". That is the reachability detector's job, not a pattern's.
+  #
+  # What this rule DOES catch is the direct, unambiguous case, which is common
+  # and needs no interprocedural reasoning. confidence: medium because a sync
+  # call in an async function is occasionally deliberate — startup config
+  # loading, CLI paths — and the rule cannot tell hot from cold.

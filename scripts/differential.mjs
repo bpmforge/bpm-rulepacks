@@ -45,7 +45,7 @@
 // it" and "nobody said where it is" are different facts and must not be summed.
 //
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, realpathSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, realpathSync, mkdtempSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -67,6 +67,36 @@ try {
     { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   collect(JSON.parse(o), cpu);
 } catch (e) { try { collect(JSON.parse(e.stdout), cpu); } catch { console.error('opengrep failed'); process.exit(1); } }
+// ast-grep pass. Omitting it made every astgrep/ rule INVISIBLE to the
+// differential — the CPU side reported 18 findings on quarry while four house
+// rules were firing 24 times on that same repo, so the catch-rate was measured
+// against half the tier. Exactly the blind spot score-corpus.mjs had before it
+// was fixed; scan.mjs and score-corpus both run this pass, and now so does this.
+if (existsSync(join(ROOT, 'astgrep'))) {
+  const sgDir = mkdtempSync(join(tmpdir(), 'bpm-diff-sg-'));
+  writeFileSync(join(sgDir, 'sgconfig.yml'), `ruleDirs:\n  - ${join(ROOT, 'astgrep')}\n`);
+  const cweById = {};
+  const walkRules = (d) => { for (const e of readdirSync(d, { withFileTypes: true })) {
+    const q = join(d, e.name);
+    if (e.isDirectory()) walkRules(q);
+    else if (/\.ya?ml$/.test(e.name)) {
+      const txt = readFileSync(q, 'utf8');
+      const id = txt.match(/^\s*-?\s*id:\s*(\S+)/m)?.[1];
+      const cwe = txt.match(/^\s+cwe:\s*\[([^\]]*)\]/m)?.[1];
+      if (id && cwe) cweById[id] = cwe.split(',').map((x) => String(Number(x.trim().replace(/^CWE-?/i, ''))));
+    } } };
+  try { walkRules(join(ROOT, 'astgrep')); } catch { /* none */ }
+  const take = (json) => { for (const m of JSON.parse(json || '[]')) {
+    const id = m.ruleId || m.rule_id || '';
+    cpu.push({ ruleId: id, file: rel(m.file || ''),
+      line: (m.range?.start?.line ?? 0) + 1, endLine: (m.range?.end?.line ?? m.range?.start?.line ?? 0) + 1,
+      cwe: cweById[id] || [], message: m.message || '' });
+  } };
+  try { take(execFileSync('ast-grep', ['scan', '-c', join(sgDir, 'sgconfig.yml'), '--json', repo],
+    { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })); }
+  catch (e) { try { take(e.stdout); } catch { console.error('ast-grep pass failed'); } }
+}
+
 for (const det of ['manifest.mjs']) {
   const p = join(ROOT, 'detectors', det);
   if (!existsSync(p)) continue;
