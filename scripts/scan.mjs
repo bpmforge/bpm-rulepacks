@@ -111,16 +111,19 @@ for (const run of sarif.runs || []) {
 if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
   const sgDir = mkdtempSync(join(tmpdir(), 'bpm-scan-sg-'));
   writeFileSync(join(sgDir, 'sgconfig.yml'), `ruleDirs:\n  - ${join(ROOT, 'astgrep')}\n`);
+  const astFindings = [];
   const collect = (json) => {
     for (const m of JSON.parse(json || '[]')) {
-      findings.push({
+      const f = {
         engine: 'ast-grep',
         ruleId: m.ruleId || m.rule_id || '',
         file: m.file || '',
         line: m.range?.start?.line != null ? m.range.start.line + 1 : null,
         level: m.severity || 'warning',
         message: m.message || '',
-      });
+      };
+      findings.push(f);
+      astFindings.push(f);
     }
   };
   try {
@@ -129,6 +132,23 @@ if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
   } catch (e) {
     try { collect(e.stdout); }
     catch { console.error(`ast-grep pass failed: ${String(e.message).split('\n')[0]}`); }
+  }
+  // Merge the ast-grep half into the SARIF as its own run. Without this the
+  // report file silently covers only the opengrep packs while the console
+  // summary counts both — a downstream consumer (CodeReckon, RepoPulse) would
+  // read the file and see half the findings with nothing saying so.
+  if (astFindings.length) {
+    const ruleIds = [...new Set(astFindings.map((f) => f.ruleId))];
+    sarif.runs = sarif.runs || [];
+    sarif.runs.push({
+      tool: { driver: { name: 'ast-grep', informationUri: 'https://ast-grep.github.io', rules: ruleIds.map((id) => ({ id })) } },
+      results: astFindings.map((f) => ({
+        ruleId: f.ruleId,
+        level: /error|critical/i.test(f.level) ? 'error' : /info|hint/i.test(f.level) ? 'note' : 'warning',
+        message: { text: f.message },
+        locations: [{ physicalLocation: { artifactLocation: { uri: f.file }, region: { startLine: f.line ?? 1 } } }],
+      })),
+    });
   }
 } else {
   console.log('⚠ ast-grep not installed — the astgrep/ ruleset was NOT run.');
@@ -166,7 +186,9 @@ if (findings.length === 0) {
 
 const outPath = valOf('--out') || join(tmpdir(), `rulepacks-scan-${basename(scanPath)}.sarif`);
 writeFileSync(outPath, JSON.stringify(sarif, null, 2));
-console.log(`\nSARIF (opengrep pass): ${outPath}`);
+const sarifCount = (sarif.runs || []).reduce((n, r) => n + (r.results?.length || 0), 0);
+console.log(`\nSARIF: ${outPath}  (${sarifCount} results across ${(sarif.runs || []).length} run(s))`);
+if (sarifCount !== findings.length) console.log(`  ⚠ ${findings.length - sarifCount} finding(s) shown above are NOT in the SARIF file.`);
 console.log('No precision/recall reported — an unlabeled repo has no ground truth. Use `npm run score` for that.');
 
 process.exit(flag('--fail-on-findings') && findings.length ? 1 : 0);
