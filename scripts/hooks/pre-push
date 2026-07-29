@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Pre-push gate for bpm-rulepacks — the thing that was missing.
+#
+# WHY: between 2026-07-18 and 07-28, 64 commits touching packs/ landed while
+# owasp-benchmark-java precision fell 0.894 -> 0.793. The regression gate was
+# correct that entire time; nothing ever ran it at the moment a rule changed.
+# The nightly workflow that was supposed to was budget-blocked by GitHub
+# Actions and died in ~3s every night. A gate nobody runs is not a gate, and
+# "remember to type npm run gate" has the identical failure mode.
+#
+# Install (once per clone):  npm run hooks:install
+# Bypass (records itself in the push, so use it deliberately):  git push --no-verify
+#
+# Cost control: only fires when the push actually contains rule/corpus changes.
+# Juliet (~64k cases) is excluded by default on wall-clock grounds — set
+# RULEPACKS_GATE_ALL=1 to include it. Excluded corpora are NAMED in the output;
+# a silent omission would read as coverage it doesn't have.
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 1
+
+# Paths whose change can move a score. Deliberately NOT scripts/gate-corpus.mjs
+# or scripts/hooks/ — those change how the gate is *run*, not what the engines
+# find, and making the gate's own maintenance trip the gate just teaches people
+# to reach for --no-verify.
+WATCH_RE='^(packs/|astgrep/|corpus/|scripts/score-corpus\.mjs)'
+
+# Collect the commit range(s) being pushed from stdin (git's pre-push protocol:
+# <local ref> <local sha> <remote ref> <remote sha>).
+changed=""
+while read -r _localref localsha _remoteref remotesha; do
+  [ "$localsha" = "0000000000000000000000000000000000000000" ] && continue   # branch deletion
+  if [ "$remotesha" = "0000000000000000000000000000000000000000" ]; then
+    # New branch with no remote counterpart: diff against every commit already
+    # on ANY remote, so a first push of a long branch still sees all its files.
+    # rev-list lists newest-first, so tail -1 is the OLDEST commit not yet on
+    # any remote; its parent is the true diff base for the whole new branch.
+    base="$(git rev-list "$localsha" --not --remotes 2>/dev/null | tail -1)"
+    if [ -n "$base" ]; then
+      files="$(git diff --name-only "${base}^" "$localsha" 2>/dev/null)"
+    else
+      files="$(git diff --name-only "${localsha}~1" "$localsha" 2>/dev/null)"
+    fi
+  else
+    files="$(git diff --name-only "$remotesha" "$localsha" 2>/dev/null)"
+  fi
+  changed="$changed$files"$'\n'
+done
+
+if [ -z "$(printf '%s' "$changed" | tr -d '[:space:]')" ]; then
+  # Nothing parsed from stdin (e.g. invoked by hand). Fall back to gating.
+  changed="$(git diff --name-only HEAD~1 HEAD 2>/dev/null)"
+fi
+
+if ! printf '%s\n' "$changed" | grep -Eq "$WATCH_RE"; then
+  echo "pre-push: no rule/corpus changes in this push — gate skipped"
+  exit 0
+fi
+
+echo "pre-push: rule/corpus changes detected — running fixture suite + corpus gate"
+echo
+
+if ! npm test --silent; then
+  echo
+  echo "pre-push: BLOCKED — fixture suite failed. Fix the rule, don't --no-verify."
+  exit 1
+fi
+echo
+
+if [ "${RULEPACKS_GATE_ALL:-0}" = "1" ]; then
+  CORPORA=""   # no filter args = every baselined corpus
+  echo "pre-push: scoring ALL baselined corpora (RULEPACKS_GATE_ALL=1)"
+else
+  CORPORA="juice-shop ossf-cve-benchmark owasp-benchmark-java"
+  echo "pre-push: scoring $CORPORA"
+  echo "pre-push: EXCLUDED from this hook: juliet-cpp (~64k cases, minutes not seconds)."
+  echo "pre-push:   It is NOT covered by this push. Run \`npm run gate -- juliet-cpp\`"
+  echo "pre-push:   or RULEPACKS_GATE_ALL=1 git push to include it."
+fi
+echo
+
+# shellcheck disable=SC2086  # word-splitting of $CORPORA is intended
+node scripts/gate-corpus.mjs $CORPORA
+code=$?
+if [ "$code" -ne 0 ]; then
+  echo
+  if [ "$code" = "3" ]; then
+    echo "pre-push: BLOCKED — the gate measured nothing (no corpus fetched)."
+    echo "pre-push:   npm run corpus:fetch owasp-benchmark-java"
+  else
+    echo "pre-push: BLOCKED — corpus regression. Fix the rule; do not rebaseline to go green."
+  fi
+  exit 1
+fi
+
+echo
+echo "pre-push: gate green"
+exit 0

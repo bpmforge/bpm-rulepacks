@@ -1,4 +1,19 @@
-name: Nightly corpus scoring
+name: Corpus scoring (manual only — see docs/CORPUS.md "Local-first gating")
+
+# DORMANT AS OF 2026-07-29. This workflow no longer fires on any automatic
+# trigger. GitHub Actions for this org is budget-blocked, so every scheduled
+# run since ~2026-07-24 died in ~3s having scored nothing, and a gate that
+# cannot run is not a gate. The regression gate now lives locally:
+#
+#     npm run gate            # every baselined corpus
+#     npm run hooks:install   # wires it to pre-push, once per clone
+#
+# Kept (not deleted) because the reasoning encoded below — why Juliet gets its
+# own job, why the cache is keyed on the pinned sha256, why python/cwe-bench/
+# dsvw are deliberately absent — stays useful if Actions is ever re-enabled.
+# `workflow_dispatch` remains so it can be run by hand without editing this
+# file. Re-enabling means restoring the `push`/`pull_request`/`schedule`
+# triggers, not writing a new workflow.
 
 # Tier-2 regression gate (docs/TESTING.md): runs the SAST engines over the
 # pinned, labeled corpora and fails if precision/recall drops vs the
@@ -22,20 +37,12 @@ name: Nightly corpus scoring
 # a corpus.lock bump) pays the full download+extract cost.
 
 on:
-  # Rule changes gate on PUSH/PR, not only nightly. The nightly schedule alone
-  # meant 64 packs/ commits landed unmeasured between 2026-07-18 and 07-28,
-  # during which owasp-benchmark-java precision fell 0.894 -> 0.793 with ZERO
-  # recall gain. The gate itself was correct the whole time (score-corpus exits
-  # 1 on a >0.05 drop); nothing ever ran it at the moment a rule changed.
-  # Paths-filtered so unrelated commits don't burn Actions minutes.
-  push:
-    branches: [main]
-    paths: ['packs/**', 'corpus/**', 'scripts/score-corpus.mjs', '.github/workflows/corpus-scoring.yml']
-  pull_request:
-    paths: ['packs/**', 'corpus/**', 'scripts/score-corpus.mjs', '.github/workflows/corpus-scoring.yml']
-  schedule:
-    # 03:17 UTC nightly — off-peak, matches docs/TESTING.md "nightly / pre-release".
-    - cron: '17 3 * * *'
+  # No push/pull_request/schedule triggers — deliberately. See the header note.
+  # The historical failure this records: 64 packs/ commits landed unmeasured
+  # between 2026-07-18 and 07-28, during which owasp-benchmark-java precision
+  # fell 0.894 -> 0.793 with ZERO recall gain, because the only trigger was a
+  # nightly cron that Actions billing refused to start. The local pre-push hook
+  # (scripts/hooks/pre-push) is what closes that gap now.
   workflow_dispatch:
     inputs:
       corpus:

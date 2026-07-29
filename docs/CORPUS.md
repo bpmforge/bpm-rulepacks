@@ -531,9 +531,80 @@ needed for this batch.
 
 _Sources verified via GitHub license API + LICENSE files + official pages, July 2026. Full citation list in the research thread._
 
-## Nightly CI (W2-05, 2026-07-18)
+## Local-first gating (2026-07-29) — Actions is no longer in the loop
 
-`.github/workflows/corpus-scoring.yml` runs nightly (03:17 UTC cron) +
+**Decision: this repo does not depend on GitHub Actions.** The regression gate
+runs on the developer's machine, at push time.
+
+**Why.** GitHub Actions for this org is budget-blocked — every scheduled run
+since ~2026-07-24 died in about three seconds with *"The job was not started
+because an Actions budget is preventing further use."* The gate logic was
+correct that entire time (`score-corpus.mjs` exits 1 on a >0.05 drop); nothing
+could execute it. Meanwhile 64 commits touching `packs/` landed between
+2026-07-18 and 07-28, during which `owasp-benchmark-java` precision fell
+**0.894 → 0.793 with zero recall gain**. That regression is still open (see
+"Standing regression" below). A gate that cannot run is not a gate, and code
+scanning does not need a hosted runner — the corpora are cloned locally and the
+engines are local binaries.
+
+### How it runs now
+
+| Command | What it does |
+|---|---|
+| `npm run hooks:install` | **Once per clone.** Sets `core.hooksPath=scripts/hooks` |
+| `npm run gate` | Score every baselined corpus vs its committed baseline |
+| `npm run gate -- juliet-cpp` | One corpus |
+| `npm run scan -- <path\|git-url>` | Run the packs over **any** repository → SARIF + counts |
+
+`scripts/hooks/pre-push` fires automatically when a push contains changes under
+`packs/`, `astgrep/`, `corpus/`, or `scripts/score-corpus.mjs`. It runs the
+fixture suite, then the corpus gate, and blocks the push on either failure.
+The hook lives in a **tracked** directory and is wired via `core.hooksPath`
+rather than copied into `.git/hooks`, because `.git/hooks` is untracked — which
+is precisely how a gate silently stops existing on the second machine.
+
+**Wall-clock (measured 2026-07-29, M2 Max):** juice-shop 5s, ossf-cve-benchmark
+11s, owasp-benchmark-java 13s — **29s for the three combined**, cheap enough
+that nobody will want to bypass it. `juliet-cpp` is **211s** on its own (~64k
+test cases), 7× the other three put together, so the hook **excludes it by
+default and says so in its own output** — an omission that isn't named reads as
+coverage it doesn't have. Include it with
+`RULEPACKS_GATE_ALL=1 git push`, or run `npm run gate -- juliet-cpp` directly.
+
+### Three failure modes this design closes
+
+1. **A gate nobody runs.** The nightly cron was the only trigger and it never
+   started. `pre-push` fires on the exact event that can cause a regression.
+2. **A gate that passes having measured nothing.** `gate-corpus.mjs` used to
+   exit 0 when every corpus was SKIPPED — a green all-clear on a fresh clone
+   with nothing fetched. It now exits **3** ("nothing scored"), distinct from
+   **1** (regression) and **2** (bad arguments).
+3. **A hook that only exists on one machine.** `core.hooksPath` + a tracked
+   `scripts/hooks/` means a fix reaches every clone on the next pull.
+
+### Standing regression — do NOT rebaseline it
+
+`owasp-benchmark-java` is **red** at Δprecision −0.101 (0.894 → 0.793, recall
+unchanged at 0.362). The other three corpora match their baselines exactly
+(Δ+0.000), which is what proves this is a genuine regression rather than a
+stale baseline. **Fix the rule; do not update the baseline to go green** —
+rebaselining a regression erases the only signal that it happened. The gate
+prints this reminder on every red run.
+
+### The dormant workflow
+
+`.github/workflows/corpus-scoring.yml` still exists but has **no automatic
+triggers** — `workflow_dispatch` only, so nothing fires and no minutes are
+consumed. It is kept rather than deleted because it encodes real reasoning
+(why Juliet gets its own job, why the cache is keyed on the pinned sha256, why
+`owasp-benchmark-python`/`cwe-bench-java`/`dsvw` are deliberately absent). If
+Actions is ever re-enabled, restore its `push`/`pull_request`/`schedule`
+triggers rather than writing a new workflow. Its original design is recorded
+below for that purpose.
+
+## Nightly CI (W2-05, 2026-07-18) — HISTORICAL, triggers removed 2026-07-29
+
+`.github/workflows/corpus-scoring.yml` ran nightly (03:17 UTC cron) +
 `workflow_dispatch` (optionally scoped to one corpus). It installs Opengrep
 (official `install.sh`) and ast-grep (`npm i -g @ast-grep/cli`), fetches each
 corpus (`corpus/fetch.mjs`), then runs `npm run score -- <name>` **without**

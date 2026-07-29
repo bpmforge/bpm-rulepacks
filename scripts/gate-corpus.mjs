@@ -47,10 +47,22 @@ for (const r of results) {
 
 const regressed = results.filter((r) => r.status === 'REGRESSED');
 const skipped = results.filter((r) => r.status === 'SKIPPED');
+const scored = results.length - skipped.length;
 if (skipped.length) console.log(`\n${skipped.length} corpus/corpora not fetched — run: npm run corpus:fetch <name>`);
 if (regressed.length) {
   console.error(`\nREGRESSION in ${regressed.length}: ${regressed.map((r) => r.name).join(', ')}`);
   console.error('A red gate means fix the rule, not rebaseline it. Rebaselining erases the only signal.');
   process.exit(1);
 }
-console.log(`\nall ${results.length - skipped.length} scored corpora at or above baseline`);
+// A gate that measured NOTHING must not exit 0. On a fresh clone (or the work
+// machine) no corpus is fetched, every entry is SKIPPED, and "0 regressions"
+// would otherwise print a green all-clear having scored nothing — the same
+// false-all-clear shape as `git log @{u}..HEAD` on a branch with no upstream.
+// Exit 3 (distinct from 1=regression, 2=bad args) so a caller can tell
+// "unmeasured" from "regressed".
+if (scored === 0) {
+  console.error('\nNOTHING SCORED — every corpus was SKIPPED. This is not a pass.');
+  console.error('Fetch at least one: npm run corpus:fetch <name>');
+  process.exit(3);
+}
+console.log(`\nall ${scored} scored corpora at or above baseline`);

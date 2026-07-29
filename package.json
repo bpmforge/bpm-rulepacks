@@ -10,7 +10,9 @@
     "check": "npm run validate && npm run test && node scripts/score-selftest.mjs",
     "corpus:fetch": "node corpus/fetch.mjs",
     "score": "node scripts/score-corpus.mjs",
-    "gate": "node scripts/gate-corpus.mjs"
+    "gate": "node scripts/gate-corpus.mjs",
+    "scan": "node scripts/scan.mjs",
+    "hooks:install": "node scripts/install-hooks.mjs"
   },
   "license": "SEE LICENSE IN LICENSE"
 }
