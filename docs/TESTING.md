@@ -69,6 +69,20 @@ The concept-ontology + retrieval side isn't pass/fail per finding; it's *ranking
 - Optionally adapt a public code-search relevance benchmark (CoIR / CodeSearchNet) for a broader, non-hand-labeled signal.
 
 ## What runs where
-- **CI (every push):** Tier 1 RED/GREEN + provenance validator. Fast, hermetic, no network.
-- **Nightly / pre-release:** `npm run score` over the fetched corpus → precision/recall + regression gate. Needs the corpus cache (fetched once).
+
+**There is no hosted CI.** As of 2026-07-29 this repo does not depend on GitHub
+Actions — see `docs/CORPUS.md` "Local-first gating" for the decision and why.
+Everything below runs on the developer's machine.
+
+- **Pre-push hook** (`npm run hooks:install`, once per clone): fires only when a
+  push touches `packs/`, `astgrep/`, `corpus/`, or `scripts/score-corpus.mjs`.
+  Runs the Tier-1 fixtures **for the changed rules only** (`--only <pack/slug>`),
+  then the Tier-2 corpus regression gate over the three fast corpora. ~29s.
+  Blocks the push on either failure.
+- **Before a merge** (`npm run check`): provenance validator + the **full** 698-case
+  Tier-1 suite + the hermetic scorer self-test. ~6 minutes, parallelised.
+- **On demand:** `npm run gate` (every baselined corpus, including the 211s
+  `juliet-cpp` the hook skips) and `npm run scan -- <path|git-url>` to run the
+  packs over any repository → SARIF + counts. Needs the corpus cache for `gate`
+  (fetched once, `npm run corpus:fetch`).
 - **The learning flywheel:** confirmed findings from real audits become new Tier-1 fixtures; recurring false positives become new `.ok` fixtures. The corpus catches classes of FPs; the fixtures pin the specific ones we've seen.

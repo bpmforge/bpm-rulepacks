@@ -618,9 +618,31 @@ safe labels was meant to destroy. The two label kinds assert different things:
 | **line-level** (Juliet 7844/7844, juice-shop 74/74) | "this line is correct code" | any finding there is an FP, **no CWE gate** |
 | **file-level** (OWASP Benchmark 0/1325) | "this file lacks CWE-X" | only CWE-X findings are FPs |
 
-Out-of-taxonomy hits are now counted as `crossTaxonomy` in `perRule` —
-**tracked, never hidden**, so a rule cannot escape FP accounting by carrying a
-wrong or missing CWE tag.
+Out-of-taxonomy hits are now counted as `crossTaxonomy` in `perRule`.
+
+Two honest qualifications on that:
+
+- **It would have opened a hole.** `cweOverlap()` returns false when *either*
+  side is empty, so a rule with no `metadata.cwe` could never be charged a
+  false positive on a file-level corpus — "omit the tag" would be an opt-out
+  from FP accounting. `validate-provenance.mjs` now **requires a non-empty
+  `cwe:` on every rule** (RED-verified), which closes it by construction rather
+  than leaving it merely unobserved.
+- **`crossTaxonomy` is not gated on.** `gate-corpus.mjs` compares precision and
+  recall only. A rule sitting at 0 TP with a large crossTaxonomy count
+  (`a07-hardcoded-connection-string-vbnet`: 0 TP / 503 on Juliet) is visible in
+  the emitted JSON and fails nothing. That is deliberate — it is a triage
+  signal, not an accounting ledger — but it is not the same as "tracked".
+
+**What the security corpora can no longer tell you.** The Java baseline (0.894)
+was set before `empty-catch-java` existed, so "back to 0.894" means "back to the
+number that measures the *security* rules." Post-fix these corpora are silent
+about code-health rules in both directions — 139 empty-catch findings on Java,
+~1,400 crossTaxonomy hits on Juliet, none of them scored. That is correct
+behavior, and it means the security corpora are definitively **not** where
+code-health rules get a precision number. **SampleCo** (12 planted defects) is
+— Wave 0 item 2 in `DETECTION_COVERAGE.md`, still unstarted, and now
+load-bearing rather than nice-to-have.
 
 Post-fix, all four corpora sit at Δ+0.000 against their **existing committed
 baselines**. Java returned to 0.894 and Juliet stayed at 0.021 with all 857

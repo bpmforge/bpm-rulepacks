@@ -128,8 +128,21 @@ for (const f of findings) {
     && (l.line != null || cweOverlap(l.cwe, f.cwe)));
   if (hitSafe) { fp++; r.fp++; continue; }
   // Counted separately, never hidden: a cross-taxonomy hit lands on a labeled
-  // file but reports a different weakness class. Tracked so a rule can't quietly
-  // escape FP accounting by carrying a wrong or missing CWE tag.
+  // file but reports a different weakness class.
+  //
+  // NOTE the hole this opens and how it is closed: cweOverlap() returns false
+  // when EITHER side is empty, so on a file-level-labeled corpus a rule with no
+  // metadata.cwe would never be charged a false positive — every finding would
+  // route here instead. "Omit the cwe: tag" would be a way to opt out of FP
+  // accounting. validate-provenance.mjs therefore REQUIRES a non-empty cwe: on
+  // every rule (`npm run check`), which is what makes that impossible rather
+  // than merely unobserved.
+  //
+  // crossTaxonomy is recorded for triage; it is NOT gated on. gate-corpus.mjs
+  // compares precision/recall only, so a rule sitting at 0 TP with a large
+  // crossTaxonomy count (a07-hardcoded-connection-string-vbnet: 0/503 on
+  // Juliet) is visible in the emitted JSON but fails nothing. Deliberate — it
+  // is a triage signal, not an accounting ledger.
   const onLabeledFile = safe.some((l) => base(l.file) === f.file) || vuln.some((l) => base(l.file) === f.file);
   if (onLabeledFile) r.crossTaxonomy = (r.crossTaxonomy || 0) + 1;
   else r.unlabeled = (r.unlabeled || 0) + 1;

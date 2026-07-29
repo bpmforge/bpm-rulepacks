@@ -42,15 +42,34 @@ metadata:
 ## Usage
 
 ```bash
-# Opengrep (the engine — install separately, LGPL)
-opengrep scan --config ./packs/ --sarif -o out.sarif src/
+# Point the whole ruleset at ANY repository — local path or git URL.
+# Runs both engines, merges to one SARIF, prints counts by rule.
+npm run scan -- ~/Code/some-project
+npm run scan -- https://github.com/org/repo --out report.sarif --top 30
+npm run scan -- ./src --pack owasp,secrets
 
-# ast-grep structural pass
-ast-grep scan --config ./astgrep/ src/
+# One-time setup per clone: wire the pre-push gate (see docs/TESTING.md).
+npm run hooks:install
 
-# Run the pack's own test suite (fixtures must fire / stay clean)
-node scripts/test-rules.mjs
+# Tier 1 — fixtures must fire / stay clean (698 cases, ~6 min parallelised)
+npm test
+npm test -- --only owasp/a03-sql-injection     # just one rule, ~4s
+npm run check                                  # provenance + fixtures + self-test
+
+# Tier 2 — precision/recall vs committed baselines (needs the corpus cache)
+npm run corpus:fetch owasp-benchmark-java
+npm run gate                                   # every baselined corpus
+npm run score -- juliet-cpp --emit /tmp/j.json # dump per-rule detail for triage
 ```
+
+`scan` reports findings only — never precision or recall, because an unlabeled
+repository has no ground truth. Those numbers come from `score`/`gate` against
+a corpus with committed labels. **There is no hosted CI**; gating is local by
+decision (`docs/CORPUS.md` → "Local-first gating").
+
+The engines themselves are separate binaries: `opengrep` (LGPL, install via its
+own `install.sh`) and `ast-grep` (`npm i -g @ast-grep/cli`). Raw invocation
+still works if you want it: `opengrep scan --config ./packs/ --sarif src/`.
 
 ## Public teaser subset
 
