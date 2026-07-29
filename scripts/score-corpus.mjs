@@ -11,7 +11,7 @@
 // Usage:
 //   node scripts/score-corpus.mjs <corpus-name> [--rule <id>] [--update-baseline] [--threshold 0.05]
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, mkdtempSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -40,8 +40,16 @@ const LINE_TOLERANCE = Number(process.env.SCORE_LINE_TOLERANCE ?? 2);
 const engine = ['opengrep', 'semgrep'].find(have);
 if (!engine) skip('no SAST engine (opengrep/semgrep) installed');
 
-const corpusPath = join(CORPUS_DIR, name);
+let corpusPath = join(CORPUS_DIR, name);
 if (!existsSync(corpusPath)) skip(`corpus '${name}' not fetched — run: node corpus/fetch.mjs ${name}`);
+// Resolve symlinks before handing the path to an engine. `type: path` corpora
+// are symlinked into CORPUS_DIR, and opengrep DOES NOT FOLLOW SYMLINKS: it
+// walked the sampleco link and reported 0 findings where the same rules found
+// 3 on the real directory. That is a silent zero — indistinguishable from "the
+// rules caught nothing" — and it is the third variant of this trap in this
+// repo (see docs/CORPUS.md on ossf-cve-benchmark's non-git payload and
+// juliet-cpp's non-git extracted zip).
+corpusPath = realpathSync(corpusPath);
 
 const labelsPath = valOf('--labels') || join(ROOT, 'corpus', 'labels', `${name}.json`);
 if (!existsSync(labelsPath)) skip(`no labels for '${name}' at ${labelsPath} (write an adapter first)`);
@@ -107,7 +115,22 @@ let tp = 0, fp = 0;
 const matchedVuln = new Set();
 const perRule = {};
 
-for (const f of findings) {
+// Deduplicate on (rule, file, line) BEFORE scoring. A taint rule reports one
+// finding per source→sink path, so a single defect built from a multi-part
+// concatenation reports several times: sampleco's two SQLi defects produced
+// five findings (line 8 twice, line 14 three times). Counting each as its own
+// true positive inflates the score for being verbose. One rule flagging one
+// line is one finding, in the report and here.
+const seenFinding = new Set();
+const dedupedFindings = findings.filter((f) => {
+  const k = `${f.ruleId}:${f.file}:${f.line}`;
+  if (seenFinding.has(k)) return false;
+  seenFinding.add(k);
+  return true;
+});
+const duplicatesDropped = findings.length - dedupedFindings.length;
+
+for (const f of dedupedFindings) {
   if (ruleFilter && f.ruleId !== ruleFilter) continue;
   const r = (perRule[f.ruleId] ??= { tp: 0, fp: 0 });
   const hitVuln = vuln.find((l) => base(l.file) === f.file && cweOverlap(l.cwe, f.cwe) && lineNear(l.line, f.line));
@@ -159,17 +182,43 @@ const consideredVuln = ruleFilter ? vuln.filter((l) => cweOfRuleFilter(l)) : vul
 const fn = consideredVuln.filter((l) => !matchedVuln.has(labelKey(l))).length;
 
 // 5. Metrics
-const precision = tp + fp === 0 ? null : tp / (tp + fp);
-const recall = tp + fn === 0 ? null : tp / (tp + fn);
+//
+// A corpus with ZERO safe labels cannot produce a precision number, and must
+// not pretend to. With no safe label anywhere, fp is structurally 0, so
+// tp/(tp+fp) evaluates to a clean 1.000 that measures nothing — it is a
+// property of the label file, not of the rules. This is exactly the artifact
+// juliet-cpp reported until its safe labels were recovered (1.000 -> 0.021),
+// and sampleco reproduced it on its very first run. Recall stays valid: every
+// planted defect has a known site, so a miss is a real miss.
+const noSafeLabels = safe.length === 0;
+const precision = noSafeLabels || tp + fp === 0 ? null : tp / (tp + fp);
+if (noSafeLabels) console.log(`  note: '${name}' has no safe labels — precision is NOT computed (it would be a 1.000 artifact). Recall only.`);
+// Recall counts LABELS COVERED over labels present — not findings over
+// findings+misses. The old `tp / (tp + fn)` mixed units: tp counted findings
+// while fn counted unmatched labels, so any label hit by two rules (or by one
+// rule twice) inflated recall above the fraction of ground truth actually
+// covered. sampleco surfaced it — 5 findings on 2 defects read as recall 0.400
+// when 4 of 16 labels were covered, i.e. 0.250. owasp-benchmark-java showed the
+// same skew: TP 524 + FN 925 = 1449 against only 1415 vuln labels.
+const covered = consideredVuln.filter((l) => matchedVuln.has(labelKey(l))).length;
+const recall = consideredVuln.length === 0 ? null : covered / consideredVuln.length;
 const f1 = precision && recall ? (2 * precision * recall) / (precision + recall) : null;
 
 console.log(`\n${name}: TP=${tp} FP=${fp} FN=${fn}`);
+console.log(`  labels covered: ${covered}/${consideredVuln.length}${duplicatesDropped ? `   (${duplicatesDropped} duplicate finding(s) on the same rule+file+line dropped)` : ''}`);
 console.log(`  precision=${fmt(precision)}  recall=${fmt(recall)}  F1=${fmt(f1)}`);
 
 // 6. Baseline diff / regression gate
 const baseDir = join(ROOT, 'corpus', 'baselines');
 const basePath = join(baseDir, `${name}.json`);
-const current = { tp, fp, fn, precision, recall, f1, perRule };
+// `missed` is the work queue for the one-rule-at-a-time loop: the vuln labels
+// no finding covered, as whole label objects (file/line/cwe/defect/note).
+// It lives HERE, in the scorer, so the loop and the score can never disagree
+// about what "covered" means — the first cut of scripts/next-miss.mjs
+// reimplemented the matcher and immediately reported two covered defects as
+// misses, because its CWE extraction was weaker than extractCwe(). One matcher.
+const missed = consideredVuln.filter((l) => !matchedVuln.has(labelKey(l)));
+const current = { tp, fp, fn, precision, recall, f1, covered, total: consideredVuln.length, perRule, missed };
 let regressed = false;
 if (existsSync(basePath)) {
   const prev = JSON.parse(readFileSync(basePath, 'utf8'));

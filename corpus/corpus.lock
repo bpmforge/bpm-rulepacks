@@ -69,6 +69,16 @@
       "notes": "Public domain. Smallest corpus — fast smoke test."
     },
     {
+      "name": "sampleco",
+      "type": "path",
+      "path": "../codereckon/sample/sampleco",
+      "license": "internal-proprietary",
+      "vendor": false,
+      "languages": ["javascript"],
+      "labels": "hand-derived from PLANTED_DEFECTS.md → labels/sampleco.json",
+      "notes": "INTERNAL, not public. 12 planted AI-slop defects in a deliberately vibe-coded Express app — the only ground truth we own for anti-slop/code-health rules, which the security corpora are structurally incapable of measuring (a code-health finding on a security corpus is cross-taxonomy, see docs/CORPUS.md). Measures CPU-CATCH-RATE (recall) ONLY: there are zero `safe` labels, so any precision number from this corpus is an artifact. Symlinked, never copied — it is the live tree in the codereckon repo."
+    },
+    {
       "name": "juliet-cpp",
       "type": "zip",
       "url": "https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-c-cplusplus-v1-3.zip",

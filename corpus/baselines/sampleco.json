@@ -1,0 +1,26 @@
+{
+  "tp": 5,
+  "fp": 0,
+  "fn": 12,
+  "precision": null,
+  "recall": 0.25,
+  "f1": null,
+  "perRule": {
+    "packs.secrets.bpm-secret-generic-assignment": {
+      "tp": 1,
+      "fp": 0
+    },
+    "packs.secrets.bpm-secret-stripe-live-key": {
+      "tp": 1,
+      "fp": 0
+    },
+    "packs.owasp.bpm-owasp-a03-sql-string-concat": {
+      "tp": 2,
+      "fp": 0
+    },
+    "packs.slop.bpm-slop-empty-catch": {
+      "tp": 1,
+      "fp": 0
+    }
+  }
+}

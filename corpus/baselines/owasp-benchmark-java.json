@@ -1,11 +1,31 @@
 {
-  "tp": 524,
-  "fp": 62,
+  "tp": 514,
+  "fp": 54,
   "fn": 925,
-  "precision": 0.89419795221843,
-  "recall": 0.3616287094547964,
-  "f1": 0.514987714987715,
+  "precision": 0.9049295774647887,
+  "recall": 0.3462897526501767,
+  "f1": 0.5008999333750982,
   "perRule": {
+    "packs.owasp.bpm-owasp-a07-webconfig-cleartext-connectionstring": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 443
+    },
+    "packs.owasp.bpm-owasp-a09-sensitive-data-logged-java": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 2
+    },
+    "packs.owasp.bpm-owasp-a05-xxe-java": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "packs.slop.bpm-slop-empty-catch-java": {
+      "tp": 0,
+      "fp": 0,
+      "crossTaxonomy": 139
+    },
     "packs.owasp.bpm-owasp-a03-command-injection-java": {
       "tp": 11,
       "fp": 4
@@ -19,27 +39,37 @@
       "fp": 10
     },
     "packs.owasp.bpm-owasp-a03-path-traversal-java": {
-      "tp": 41,
-      "fp": 32
+      "tp": 31,
+      "fp": 24
     },
     "packs.owasp.bpm-owasp-a03-xpath-injection-java": {
       "tp": 7,
       "fp": 1
     },
-    "bpm-owasp-a02-weak-cipher-java": {
-      "tp": 97,
+    "packs.slop.bpm-slop-empty-catch": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "packs.slop.bpm-slop-try-catch-in-loop": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "bpm-owasp-a02-insecure-random-java": {
+      "tp": 193,
       "fp": 0
     },
     "bpm-owasp-a02-weak-hash-java": {
       "tp": 113,
       "fp": 0
     },
-    "bpm-owasp-a07-cookie-insecure-flag-java": {
-      "tp": 36,
+    "bpm-owasp-a02-weak-cipher-java": {
+      "tp": 97,
       "fp": 0
     },
-    "bpm-owasp-a02-insecure-random-java": {
-      "tp": 193,
+    "bpm-owasp-a07-cookie-insecure-flag-java": {
+      "tp": 36,
       "fp": 0
     }
   }

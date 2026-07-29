@@ -38,6 +38,7 @@ for (const c of entries) {
   try {
     if ((c.type || 'git') === 'git') await fetchGit(c);
     else if (c.type === 'zip') await fetchZip(c);
+    else if (c.type === 'path') await linkPath(c);
     else { console.error(`✗ ${c.name}: unknown type '${c.type}'`); failed++; continue; }
   } catch (e) { console.error(`✗ ${c.name}: ${e.message.split('\n')[0]}`); failed++; }
 }
@@ -55,6 +56,25 @@ async function fetchGit(c) {
   const head = execFileSync('git', ['-C', dest, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   if (head !== c.sha) throw new Error(`SHA mismatch (got ${head.slice(0, 8)}, want ${c.sha.slice(0, 8)})`);
   console.log(`✓ ${c.name} @ ${c.sha.slice(0, 8)} → ${dest}`);
+}
+
+// type: "path" — an INTERNAL corpus that already lives on this machine, in a
+// sibling bpmforge repo. Symlinked into $CORPUS_DIR rather than cloned or
+// copied, so it is always the live tree and there is no second copy to drift.
+// No SHA to pin (it isn't a public snapshot) and no licence question (it's
+// ours) — but `license` is still required by the loop above, so these entries
+// carry an explicit internal marker rather than being waved through.
+async function linkPath(c) {
+  const dest = join(CORPUS_DIR, c.name);
+  const src = c.path.startsWith('/') ? c.path : join(ROOT, c.path);
+  if (!existsSync(src)) throw new Error(`path not found: ${src}`);
+  if (existsSync(dest)) {
+    const cur = execFileSync('sh', ['-c', `readlink "${dest}" || echo ""`], { encoding: 'utf8' }).trim();
+    if (cur === src) { console.log(`✓ ${c.name} → ${src} (linked)`); return; }
+    execFileSync('rm', ['-rf', dest]);
+  }
+  execFileSync('ln', ['-s', src, dest]);
+  console.log(`✓ ${c.name} → ${src} (linked)`);
 }
 
 async function fetchZip(c) {

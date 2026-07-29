@@ -1,18 +1,73 @@
 rules:
   - id: bpm-owasp-a03-sql-string-concat
     languages: [javascript, typescript]
-    severity: WARNING
+    severity: ERROR
+    mode: taint
     message: >
-      SQL query is built via string concatenation / template interpolation
-      instead of parameter placeholders (OWASP A03:2021, CWE-89: SQL Injection).
-      Use a parameterized query (e.g. `db.query("... WHERE id = $1", [id])`)
-      so the driver escapes the value.
-    pattern-either:
-      - pattern: |
-          $DB.query(`...${$VAR}...`)
-      - pattern: $DB.query($SQL + $VAR)
-      - pattern: |
-          $DB.execute(`...${$VAR}...`)
+      A SQL query string built by concatenation or template interpolation
+      reaches a database driver call (OWASP A03:2021, CWE-89: SQL Injection).
+      Whatever the interpolated value contains becomes part of the query's
+      structure, so an attacker who controls it can read, modify, or delete
+      data outside the intended scope. Use the driver's parameter placeholders
+      and pass the values as a separate bind array — `db.all("... WHERE id = ?",
+      [id], cb)`, `db.query("... WHERE id = $1", [id])` — instead of building
+      the SQL text from data.
+    pattern-sources:
+      # A concatenation whose left operand is a string literal that reads like
+      # SQL. The keyword constraint is what keeps this from tainting every
+      # string concatenation in the file: "user id = " + id is not a source.
+      - patterns:
+          - pattern: $SQLTEXT + $VAR
+          - metavariable-regex:
+              metavariable: $SQLTEXT
+              regex: '(?is)^["''`].*\b(select|insert\s+into|update|delete\s+from|drop|union|where|values|set)\b'
+      # The same defect spelled as a template literal with an interpolation.
+      # NO keyword constraint here, deliberately: `pattern-regex` is silently
+      # INERT inside a taint source under opengrep 1.25.0 — a source of
+      # {pattern: `...${$VAR}...`, pattern-regex: 'SELECT'} matches nothing at
+      # all against a template that plainly contains SELECT, while the same
+      # pattern alone matches. metavariable-regex and pattern-not-regex both
+      # work in that position; pattern-regex does not. Verified by direct
+      # experiment, not assumed. The specificity that keyword matching would
+      # have provided is carried by the sink list below instead.
+      - pattern: '`...${$VAR}...`'
+    pattern-sinks:
+      # focus-metavariable pins taint to the QUERY-TEXT argument. Without it,
+      # opengrep flags a multi-argument sink when ANY captured metavariable is
+      # tainted — the exact landmine documented three times in docs/CORPUS.md
+      # (a03-ldap-injection-java, a03-sql-injection-swift, and the Java/Kotlin
+      # taint notes). Here it matters directly: the parameterized `.ok` form is
+      # db.all(q, [customerId], cb), and the bind array must never make it fire.
+      # Group 1 — method names specific enough to stand alone. Being handed a
+      # concatenated or interpolated string by one of these IS the finding.
+      - patterns:
+          - pattern-either:
+              # pg / mysql / mysql2 / generic
+              - pattern: $DB.query($SINK, ...)
+              - pattern: $DB.execute($SINK, ...)
+              # knex / objection raw escape hatch
+              - pattern: $DB.raw($SINK, ...)
+              # node-sqlite3 / better-sqlite3. The original rule knew only
+              # query() and execute(), so EVERY sqlite3 application was
+              # invisible to it — the gap that let SampleCo's D2 through.
+              - pattern: $DB.all($SINK, ...)
+              - pattern: $DB.each($SINK, ...)
+              - pattern: $DB.exec($SINK)
+              - pattern: $DB.prepare($SINK)
+          - focus-metavariable: $SINK
+      # Group 2 — `get` and `run` are far too common to accept on any receiver
+      # (cache.get(`user:${id}`), router.run(...), map.get(...)). Gated on a
+      # database-shaped receiver name, the same disambiguation this repo
+      # already uses in bpm-framework-gin-sql-injection and -echo-sql-injection
+      # to separate a sql.DB handle from a request context.
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.get($SINK, ...)
+              - pattern: $DB.run($SINK, ...)
+          - metavariable-regex:
+              metavariable: $DB
+              regex: '.*(db|Db|DB|conn|Conn|tx|Tx|pool|Pool|client|Client|knex|database|Database|sqlite|sequelize).*'
+          - focus-metavariable: $SINK
     metadata:
       license: proprietary
       provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A03"
@@ -21,3 +76,18 @@ rules:
       confidence: high
       concept: sql_database
       since: "0.1.0"
+      # Rewritten 2026-07-29 from an inline-only pattern-either to taint mode,
+      # driven by a measured miss rather than review taste. The old rule was:
+      #
+      #   pattern: $DB.query(`...${$VAR}...`)
+      #   pattern: $DB.query($SQL + $VAR)
+      #   pattern: $DB.execute(`...${$VAR}...`)
+      #
+      # which requires the concatenation to sit AT the call site. Real code
+      # almost always builds the query into a local first:
+      #
+      #   const q = "SELECT ... '" + customerId + "'";
+      #   db.all(q, [], cb);
+      #
+      # One variable hop defeated the whole rule, and the sink list missed the
+      # entire node-sqlite3 API on top of that. Taint mode follows the local.

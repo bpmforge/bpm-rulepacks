@@ -1,15 +1,57 @@
 {
-  "tp": 1,
+  "tp": 2,
   "fp": 0,
-  "fn": 39,
+  "fn": 36,
   "precision": 1,
-  "recall": 0.025,
-  "f1": 0.04878048780487806,
+  "recall": 0.12195121951219512,
+  "f1": 0.21739130434782605,
   "perRule": {
+    "packs.owasp.bpm-owasp-a02-weak-hash": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1,
+      "crossTaxonomy": 1
+    },
+    "packs.owasp.bpm-owasp-a03-sql-string-concat": {
+      "tp": 2,
+      "fp": 0,
+      "unlabeled": 6
+    },
     "packs.secrets.bpm-secret-generic-assignment": {
       "tp": 0,
       "fp": 0,
       "unlabeled": 14
+    },
+    "packs.slop.bpm-slop-fallback-hides-failure": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "packs.slop.bpm-slop-try-parse-fallback": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 1
+    },
+    "packs.slop.bpm-slop-try-catch-in-loop": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 4
+    },
+    "packs.secrets.bpm-secret-pem-private-key": {
+      "tp": 0,
+      "fp": 0,
+      "crossTaxonomy": 1
+    },
+    "packs.owasp.bpm-owasp-a07-hardcoded-jwt-secret": {
+      "tp": 0,
+      "fp": 0,
+      "crossTaxonomy": 1
+    },
+    "packs.owasp.bpm-owasp-a07-plaintext-password-compare": {
+      "tp": 0,
+      "fp": 0,
+      "unlabeled": 2,
+      "crossTaxonomy": 7
     },
     "packs.owasp.bpm-owasp-a10-ssrf-user-controlled-url": {
       "tp": 0,
@@ -21,42 +63,7 @@
       "fp": 0,
       "unlabeled": 2
     },
-    "bpm-slop-try-catch-in-loop": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 3
-    },
-    "bpm-owasp-a03-sql-string-concat": {
-      "tp": 1,
-      "fp": 0,
-      "unlabeled": 4
-    },
-    "bpm-framework-fastify-route-missing-schema": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 271
-    },
-    "bpm-owasp-a07-plaintext-password-compare": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 10
-    },
-    "bpm-owasp-a07-hardcoded-jwt-secret": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 1
-    },
-    "bpm-slop-fallback-hides-failure": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 1
-    },
-    "bpm-slop-try-parse-fallback": {
-      "tp": 0,
-      "fp": 0,
-      "unlabeled": 1
-    },
-    "bpm-slop-empty-catch": {
+    "packs.owasp.bpm-owasp-a01-directory-listing": {
       "tp": 0,
       "fp": 0,
       "unlabeled": 1

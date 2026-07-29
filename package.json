@@ -12,7 +12,8 @@
     "score": "node scripts/score-corpus.mjs",
     "gate": "node scripts/gate-corpus.mjs",
     "scan": "node scripts/scan.mjs",
-    "hooks:install": "node scripts/install-hooks.mjs"
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "misses": "node scripts/next-miss.mjs"
   },
   "license": "SEE LICENSE IN LICENSE"
 }
