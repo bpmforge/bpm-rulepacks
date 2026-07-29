@@ -58,13 +58,29 @@ if ! printf '%s\n' "$changed" | grep -Eq "$WATCH_RE"; then
   exit 0
 fi
 
-echo "pre-push: rule/corpus changes detected — running fixture suite + corpus gate"
+echo "pre-push: rule/corpus changes detected"
 echo
 
-if ! npm test --silent; then
-  echo
-  echo "pre-push: BLOCKED — fixture suite failed. Fix the rule, don't --no-verify."
-  exit 1
+# Fixture suite, scoped to the rules this push actually touches. The FULL suite
+# is 698 cases at ~6 minutes even parallelised (measured 2026-07-29, M2 Max,
+# 12 workers) — run it via `npm run check` before a merge, not on every push.
+# A six-minute hook gets --no-verify'd within a day, and a bypassed gate
+# protects nothing.
+SLUGS="$(printf '%s\n' "$changed" \
+  | grep -E '^(packs|astgrep|fixtures)/' \
+  | sed -E 's#^(packs|astgrep|fixtures)/([^/]+)/([^/]+)\.(yaml|yml)$#\2/\3#; s#^fixtures/([^/]+)/(.+)\.(vuln|ok)\.[^.]+$#\1/\2#' \
+  | grep -E '^[^/]+/[^/]+$' | sort -u | paste -sd, -)"
+
+if [ -n "$SLUGS" ]; then
+  echo "pre-push: fixture suite for changed rules: $SLUGS"
+  if ! node scripts/test-rules.mjs --only "$SLUGS"; then
+    echo
+    echo "pre-push: BLOCKED — fixture suite failed. Fix the rule, don't --no-verify."
+    exit 1
+  fi
+else
+  echo "pre-push: no individual rule files changed — fixture suite not run."
+  echo "pre-push:   (corpus/scorer changes only; the corpus gate below is the check)"
 fi
 echo
 

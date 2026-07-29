@@ -9,9 +9,22 @@
 // convention: prefer astgrep/<pack>/<slug>.yaml (ast-grep --rule); else fall
 // back to the packs/<pack>/ directory (opengrep --config). This is what lets
 // parallel rule tickets land without touching this shared file.
-import { execFileSync } from 'node:child_process';
+//
+// Flags:
+//   --only <a,b>   run only fixtures whose "<pack>/<slug>" contains one of
+//                  these substrings. Used by the pre-push hook to test just
+//                  the rules a push actually touches — the full suite spawns
+//                  an engine process per fixture and takes minutes, which is
+//                  fine for `npm run check` and far too slow for a hook.
+//   -j <n>         concurrency (default: cpu count). Each case is an
+//                  independent process spawn, so this is near-linear.
+import { execFileSync, execFile } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { cpus } from 'node:os';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 function have(bin) {
   try { execFileSync('sh', ['-c', `command -v ${bin}`], { stdio: 'ignore' }); return true; }
@@ -20,6 +33,23 @@ function have(bin) {
 
 const ROOT = new URL('..', import.meta.url).pathname;
 let pass = 0, fail = 0, skip = 0;
+
+const argv = process.argv.slice(2);
+const valOf = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
+const ONLY = (valOf('--only') || '').split(',').map((s) => s.trim()).filter(Boolean);
+const JOBS = Math.max(1, Number(valOf('-j') || cpus().length));
+
+async function runOpengrepAsync(config, file) {
+  const { stdout } = await execFileAsync('opengrep',
+    ['scan', '--config', config, '--scan-unknown-extensions', '--json', file],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return (JSON.parse(stdout).results || []).length;
+}
+async function runAstGrepAsync(rule, file) {
+  const { stdout } = await execFileAsync('ast-grep', ['scan', '--rule', rule, '--json', file],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return (JSON.parse(stdout) || []).length;
+}
 
 function runOpengrep(config, file) {
   // --scan-unknown-extensions: fixtures like web.config (real ASP.NET config
@@ -84,6 +114,7 @@ function discoverCases() {
         continue;
       }
 
+      if (ONLY.length && !ONLY.some((p) => `${pack}/${slug}`.includes(p))) continue;
       cases.push({ engine, config, vuln: `fixtures/${pack}/${kinds.vuln}`, ok: `fixtures/${pack}/${kinds.ok}` });
     }
   }
@@ -92,18 +123,45 @@ function discoverCases() {
 
 const cases = discoverCases();
 
-for (const { engine, config, vuln, ok } of cases) {
-  for (const [fixture, expectFire] of [[vuln, true], [ok, false]]) {
-    const bin = engine === 'opengrep' ? 'opengrep' : 'ast-grep';
-    if (!have(bin)) { console.log(`SKIP  (${bin} not installed)  ${fixture}`); skip++; continue; }
-    let n;
-    try { n = engine === 'opengrep' ? runOpengrep(config, fixture) : runAstGrep(config, fixture); }
-    catch (e) { console.log(`FAIL  (engine error)  ${fixture}: ${e.message.split('\n')[0]}`); fail++; continue; }
-    const fired = n > 0;
-    if (fired === expectFire) { console.log(`PASS  ${fixture} (${fired ? 'fired' : 'clean'})`); pass++; }
-    else { console.log(`FAIL  ${fixture} expected ${expectFire ? 'FIRE' : 'CLEAN'}, got ${n} match(es)`); fail++; }
-  }
+if (ONLY.length && cases.length === 0) {
+  // An --only filter that matches nothing must not read as "all green". The
+  // caller asked for specific rules to be tested and none were.
+  console.error(`no fixtures matched --only ${ONLY.join(',')} — nothing was tested`);
+  process.exit(2);
 }
 
-console.log(`\n${pass} passed, ${fail} failed, ${skip} skipped`);
+// Flatten to independent units of work, then run them through a bounded pool.
+// Results are collected and printed in discovery order so output stays
+// deterministic regardless of completion order.
+const units = [];
+for (const { engine, config, vuln, ok } of cases) {
+  for (const [fixture, expectFire] of [[vuln, true], [ok, false]]) units.push({ engine, config, fixture, expectFire });
+}
+
+const results = new Array(units.length);
+let next = 0;
+async function worker() {
+  for (;;) {
+    const i = next++;
+    if (i >= units.length) return;
+    const { engine, config, fixture, expectFire } = units[i];
+    const bin = engine === 'opengrep' ? 'opengrep' : 'ast-grep';
+    if (!have(bin)) { results[i] = { kind: 'skip', line: `SKIP  (${bin} not installed)  ${fixture}` }; continue; }
+    let n;
+    try { n = engine === 'opengrep' ? await runOpengrepAsync(config, fixture) : await runAstGrepAsync(config, fixture); }
+    catch (e) { results[i] = { kind: 'fail', line: `FAIL  (engine error)  ${fixture}: ${String(e.message).split('\n')[0]}` }; continue; }
+    const fired = n > 0;
+    results[i] = fired === expectFire
+      ? { kind: 'pass', line: `PASS  ${fixture} (${fired ? 'fired' : 'clean'})` }
+      : { kind: 'fail', line: `FAIL  ${fixture} expected ${expectFire ? 'FIRE' : 'CLEAN'}, got ${n} match(es)` };
+  }
+}
+await Promise.all(Array.from({ length: Math.min(JOBS, units.length) }, worker));
+
+for (const r of results) {
+  console.log(r.line);
+  if (r.kind === 'pass') pass++; else if (r.kind === 'fail') fail++; else skip++;
+}
+
+console.log(`\n${pass} passed, ${fail} failed, ${skip} skipped${ONLY.length ? `  (--only ${ONLY.join(',')})` : ''}`);
 process.exit(fail ? 1 : 0);
