@@ -1,0 +1,33 @@
+{
+  "packages": {
+    "express": {
+      "exists": true,
+      "advisories": [
+        {
+          "id": "GHSA-qw6h-vgh9-j6wx",
+          "fixed": "4.20.0"
+        },
+        {
+          "id": "GHSA-rv95-896h-c2vc",
+          "fixed": "4.19.2"
+        }
+      ],
+      "checkedAt": "2026-07-29"
+    },
+    "sqlite3": {
+      "exists": true,
+      "advisories": [
+        {
+          "id": "GHSA-jqv5-7xpx-qj74",
+          "fixed": "5.1.5"
+        }
+      ],
+      "checkedAt": "2026-07-29"
+    },
+    "json-safe-parse-ultra": {
+      "exists": false,
+      "advisories": [],
+      "checkedAt": "2026-07-29"
+    }
+  }
+}

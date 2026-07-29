@@ -104,6 +104,32 @@ if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
   }
 }
 
+// 2c. Non-pattern detectors. The manifest detector finds defect classes no
+// opengrep/ast-grep pattern can express, because they are properties of the
+// RELATIONSHIP between package.json, the import graph and the registry rather
+// than of any single file's syntax — hallucinated deps, phantom imports, known
+// advisories. Scoring SampleCo is what made the ceiling visible: the rulepack
+// alone tops out around 7 of 12 planted defects, and no additional pattern rule
+// can reach the rest.
+//
+// Runs OFFLINE (no --refresh): lookups come from the committed registry cache,
+// so this stays hermetic and the pre-push gate never depends on the network.
+const manifestDetector = join(ROOT, 'detectors', 'manifest.mjs');
+if (existsSync(manifestDetector)) {
+  try {
+    const out = execFileSync('node', [manifestDetector, corpusPath, '--sarif'],
+      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const run of (JSON.parse(out).runs || [])) {
+      const meta = Object.fromEntries((run.tool?.driver?.rules || []).map((r) => [r.id, r]));
+      for (const res of run.results || []) {
+        const loc = res.locations?.[0]?.physicalLocation;
+        findings.push({ file: base(loc?.artifactLocation?.uri || ''), line: loc?.region?.startLine ?? null,
+          cwe: extractCwe(res, meta[res.ruleId]), ruleId: `detectors.${res.ruleId}` });
+      }
+    }
+  } catch (e) { console.error(`manifest detector failed: ${String(e.message).split('\n')[0]}`); }
+}
+
 // 3. Load normalized labels: [{file, line?, cwe, kind:"vuln"|"safe"}]
 const labels = JSON.parse(readFileSync(labelsPath, 'utf8'));
 
@@ -146,7 +172,7 @@ for (const f of dedupedFindings) {
   //
   // Prefer an unclaimed label, then the nearest line. Same finding set, but
   // distinct detections now map to distinct labels.
-  const candidates = vuln.filter((l) => base(l.file) === f.file && cweOverlap(l.cwe, f.cwe) && lineNear(l.line, f.line));
+  const candidates = vuln.filter((l) => sameFile(l.file, f.file) && cweOverlap(l.cwe, f.cwe) && lineNear(l.line, f.line));
   const dist = (l) => (l.line == null || f.line == null ? Infinity : Math.abs(l.line - f.line));
   const unclaimed = candidates.filter((l) => !matchedVuln.has(labelKey(l))).sort((a, b) => dist(a) - dist(b));
   const hitVuln = unclaimed[0] ?? candidates.sort((a, b) => dist(a) - dist(b))[0];
@@ -171,7 +197,7 @@ for (const f of dedupedFindings) {
   //       stayed byte-identical. Its 75 "false positives" were genuine empty
   //       catch blocks in files whose ground truth only says "not vulnerable
   //       to CWE-22". So: CWE gate applies, and only there.
-  const hitSafe = safe.find((l) => base(l.file) === f.file && lineNear(l.line, f.line)
+  const hitSafe = safe.find((l) => sameFile(l.file, f.file) && lineNear(l.line, f.line)
     && (l.line != null || cweOverlap(l.cwe, f.cwe)));
   if (hitSafe) { fp++; r.fp++; continue; }
   // Counted separately, never hidden: a cross-taxonomy hit lands on a labeled
@@ -190,7 +216,7 @@ for (const f of dedupedFindings) {
   // crossTaxonomy count (a07-hardcoded-connection-string-vbnet: 0/503 on
   // Juliet) is visible in the emitted JSON but fails nothing. Deliberate — it
   // is a triage signal, not an accounting ledger.
-  const onLabeledFile = safe.some((l) => base(l.file) === f.file) || vuln.some((l) => base(l.file) === f.file);
+  const onLabeledFile = safe.some((l) => sameFile(l.file, f.file)) || vuln.some((l) => sameFile(l.file, f.file));
   if (onLabeledFile) r.crossTaxonomy = (r.crossTaxonomy || 0) + 1;
   else r.unlabeled = (r.unlabeled || 0) + 1;
 }
@@ -265,7 +291,20 @@ if (updateBaseline) {
 process.exit(regressed && !updateBaseline ? 1 : 0);
 
 // ── helpers ──
-function base(p) { return String(p).split('/').slice(-2).join('/'); }
+function base(p) { return String(p).split("/").slice(-2).join("/"); }
+// Compare paths by their TRAILING segments, using however many the SHORTER side
+// has. base() normalises both sides to two segments, which silently fails for a
+// label that is a bare root-level filename: label "package.json" (1 segment) vs
+// finding "sampleco/package.json" (2) never matched, so every manifest finding
+// on package.json scored as unlabeled -- sampleco D3 (slopsquat) and D10 (stale
+// dep) were detected correctly and credited to nothing.
+function sameFile(a, b) {
+  const A = String(a).split("/").filter(Boolean), B = String(b).split("/").filter(Boolean);
+  const n = Math.min(A.length, B.length);
+  if (n === 0) return false;
+  for (let i = 1; i <= n; i++) if (A[A.length - i] !== B[B.length - i]) return false;
+  return true;
+}
 // Map each ast-grep rule id → its metadata.cwe (so ast-grep findings can match labels by CWE).
 function buildAstGrepCweMap(dir) {
   const map = {};
