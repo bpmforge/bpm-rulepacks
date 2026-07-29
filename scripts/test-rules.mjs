@@ -46,9 +46,17 @@ async function runOpengrepAsync(config, file) {
   return (JSON.parse(stdout).results || []).length;
 }
 async function runAstGrepAsync(rule, file) {
-  const { stdout } = await execFileAsync('ast-grep', ['scan', '--rule', rule, '--json', file],
-    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  return (JSON.parse(stdout) || []).length;
+  // ast-grep exits NON-ZERO when it reports an `severity: error` finding, so a
+  // correctly-firing error-severity rule looked like an engine failure and its
+  // .vuln fixture FAILED. 79 of 82 existing ast-grep rules are `warning`, which
+  // is why this stayed hidden until the first error-severity rule was written.
+  // Its stdout is valid JSON either way — same shape as the opengrep path,
+  // which has always tolerated this.
+  let stdout;
+  try { ({ stdout } = await execFileAsync('ast-grep', ['scan', '--rule', rule, '--json', file],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })); }
+  catch (e) { if (e.stdout == null) throw e; stdout = e.stdout; }
+  return (JSON.parse(stdout || '[]') || []).length;
 }
 
 function runOpengrep(config, file) {

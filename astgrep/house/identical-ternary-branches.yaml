@@ -1,0 +1,17 @@
+id: bpm-house-identical-ternary-branches
+language: ts
+severity: error
+message: >
+  Both branches of this conditional produce the same value, so the condition
+  has no effect. The code reads as though it handles two cases and handles one.
+  Either the branches were meant to differ (a real bug — implement the
+  difference) or the condition is dead (remove it).
+rule:
+  pattern: "$C ? $X : $X"
+metadata:
+  license: proprietary
+  provenance: "derived:quarry/SLOP-identical-ternary"
+  cwe: [570]
+  confidence: high
+  concept: code_quality
+  since: "0.2.0"
