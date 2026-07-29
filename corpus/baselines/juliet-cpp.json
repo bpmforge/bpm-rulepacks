@@ -1,35 +1,31 @@
 {
   "tp": 18,
-  "fp": 857,
+  "fp": 186,
   "fn": 2662,
-  "precision": 0.02057142857142857,
+  "precision": 0.08823529411764706,
   "recall": 0.006716417910447761,
-  "f1": 0.010126582278481013,
+  "f1": 0.012482662968099863,
   "perRule": {
     "packs.owasp.bpm-owasp-mem-unsafe-string-functions": {
+      "tp": 0,
+      "fp": 186,
+      "unlabeled": 5529,
+      "crossTaxonomy": 253
+    },
+    "packs.owasp.bpm-owasp-mem-inherently-dangerous-function": {
       "tp": 18,
-      "fp": 700,
-      "unlabeled": 17953
-    },
-    "packs.owasp.bpm-owasp-mem-integer-overflow-malloc": {
-      "tp": 0,
-      "fp": 130,
-      "unlabeled": 24891
-    },
-    "packs.owasp.bpm-owasp-a07-hardcoded-connection-string-vbnet": {
-      "tp": 0,
-      "fp": 27,
-      "unlabeled": 2225
+      "fp": 0
     },
     "packs.slop.bpm-slop-empty-catch-cpp": {
       "tp": 0,
       "fp": 0,
-      "unlabeled": 18
+      "crossTaxonomy": 18
     },
     "packs.slop.bpm-slop-try-catch-in-loop-cpp": {
       "tp": 0,
       "fp": 0,
-      "unlabeled": 16
+      "crossTaxonomy": 8,
+      "unlabeled": 8
     }
   }
 }

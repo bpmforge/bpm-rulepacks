@@ -14,3 +14,14 @@ void *alloc_reading_batch(size_t record_count, size_t record_size) {
 void *alloc_fixed_header(void) {
     return malloc(4 * 8);
 }
+
+/* The element-size idiom. This fixture asserted the OPPOSITE until
+ * 2026-07-29 -- it sat in the .vuln file described as "exactly the
+ * canonical attacker-controlled CWE-190 shape". The corpus disagreed:
+ * across all 64,099 Juliet C/C++ cases this shape accounted for 100% of
+ * the rule's firings and 0% of its true positives. On a 64-bit target,
+ * overflowing size_t via n * sizeof(T) needs n above 2^61. Deliberately
+ * clean; see packs/owasp/mem-integer-overflow-malloc.yaml. */
+void *alloc_record_array(size_t count) {
+    return malloc(count * sizeof(int));
+}

@@ -28,6 +28,14 @@ function skip(msg) { console.log(`SKIP  ${msg}`); process.exit(0); }
 
 if (!name) { console.error('usage: score-corpus.mjs <corpus-name> [--rule id] [--update-baseline]'); process.exit(2); }
 
+// ±2 by default: engines and labels legitimately disagree by an import line or
+// a wrapped call. SCORE_LINE_TOLERANCE exists for sensitivity analysis — a
+// finding count that collapses at tolerance 0 was riding on the fuzz, and
+// "N false positives" should never rest on a number nobody has stress-tested.
+// Declared here, not beside lineNear() in the helpers block: the matching loop
+// runs at module top level, so a const declared below it is still in its TDZ.
+const LINE_TOLERANCE = Number(process.env.SCORE_LINE_TOLERANCE ?? 2);
+
 // Engine resolution (opengrep preferred, semgrep fallback) — same policy as the fleet.
 const engine = ['opengrep', 'semgrep'].find(have);
 if (!engine) skip('no SAST engine (opengrep/semgrep) installed');
@@ -213,7 +221,7 @@ function buildAstGrepCweMap(dir) {
   return map;
 }
 function labelKey(l) { return `${base(l.file)}:${l.line ?? '*'}:${(l.cwe || []).join(',')}`; }
-function lineNear(a, b) { if (a == null || b == null) return true; return Math.abs(a - b) <= 2; }
+function lineNear(a, b) { if (a == null || b == null) return true; return Math.abs(a - b) <= LINE_TOLERANCE; }
 function cweOverlap(a, b) { const A = arr(a), B = arr(b); return A.length === 0 || B.length === 0 ? false : A.some((x) => B.includes(x)); }
 function arr(x) { return (Array.isArray(x) ? x : x == null ? [] : [x]).map((n) => String(n).replace(/^CWE-?/i, '')); }
 function cweOfRuleFilter() { return true; }
