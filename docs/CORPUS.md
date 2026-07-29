@@ -928,6 +928,118 @@ overfitting guard) does not chase. A future ticket could add
 *real* (non-Juliet) codebase is found to need it, or wire a Juliet-aware
 macro-expansion pre-pass — neither is in this ticket's `write_scope`.
 
+### juliet-cpp safe-label recovery — precision was an artifact (measurement-honesty ticket, 2026-07-28)
+
+The W1-16 baseline above reported **precision=1.000** for juliet-cpp. That
+number was incapable of being anything else: `corpus/adapters/juliet.mjs`
+only ever emitted `kind:"vuln"` labels (the manifest's own `<flaw>` line),
+never `kind:"safe"` — so `fp` could not increment by construction, and
+`bpm-owasp-mem-unsafe-string-functions` alone left **18,653 findings**
+sitting in the scorer's `unlabeled` bucket, never assessed either way.
+Juliet pairs every `bad()` flaw with `good()`/`good1()`/`goodG2B()`/
+`goodB2G()` fixed variants specifically so a scorer can measure false
+positives — the adapter was only using half the corpus.
+
+**Structure, verified against the fetched corpus, not assumed:**
+
+- Every flow variant guards its safe code with `#ifndef OMITGOOD ...
+  #endif` (the template generator's own scaffolding — reliable across all
+  118 CWE folders, including nested `#ifdef _WIN32` blocks inside a
+  bad/good region, confirmed by direct inspection and handled with a
+  depth-aware `#if*`/`#endif` scan rather than naive string matching).
+- Within an OMITGOOD region, the exact defect line is marked one of two
+  ways: `/* FIX: ... */` (the code genuinely changed — e.g. `gets(dest)` →
+  `fgets(dest, DEST_SIZE, stdin)`) or `/* POTENTIAL FLAW: ... */` (the sink
+  call is byte-identical to bad()'s — e.g. `strcpy(data, source);` appears
+  unchanged in both `bad()` and `goodG2B()` — because the sink alone can't
+  tell safe from unsafe; only the upstream buffer/source choice, fixed
+  earlier in the same function, does). Manifest cross-checks on multiple
+  flow variants (single-file `01`, split-sink `51b`/`52c`/`67b`, and the
+  dedicated-good-file `81_goodG2B.cpp`/`82_goodG2B.cpp` virtual-method
+  variant) confirmed every `<flaw line="N">` in the manifest points exactly
+  at the code line immediately following one of these two markers inside
+  `bad()` — the same adjacency holds symmetrically for the mirrored line in
+  `good()`, which is what the adapter now extracts.
+- `INCIDENTAL` comments (an unrelated secondary CWE riding along in the
+  same file, e.g. `/* INCIDENTAL: CWE 561 Dead Code ... */`) are excluded —
+  they don't describe the CWE under test.
+- The 81/82 virtual-method flow variants put `good()` in a **completely
+  separate file** from `bad()` (`..._81_bad.cpp` / `..._81_goodG2B.cpp`,
+  sharing a `.h`), not the same file — so safe-label scanning is scoped to
+  every sibling `<file>` in the manifest's `<testcase>` block, not just the
+  one file carrying the `<flaw>` tag. This also correctly excludes files
+  like a bare `..._a.c` driver or a `..._67a.c` source-read file that sit
+  in the same testcase but never contain a mirrored sink line — nothing to
+  find there, nothing labeled.
+
+**Resolving a marker to a line:** a marker comment (`/* ... */` or its
+`// ...` line-comment form) is resolved to the first real code line after
+it closes — skipping blank lines, comment-only lines, and bare
+preprocessor directives, within a 5-line lookahead. **Conservative by
+construction:** if the comment never closes, or no code line turns up in
+that window, the marker is left unresolved — no label is guessed. Of 7,887
+markers found inside OMITGOOD regions, 7,844 resolved cleanly and **40
+were left unresolved** (deliberately excluded, not guessed at). Any
+would-be safe line that collided with an already-emitted vuln line (same
+file+line) was also dropped rather than double-labeled — 0 collisions
+occurred in practice, consistent with bad/good code living in disjoint
+`#ifndef` regions.
+
+**Labels:** unchanged 2,680 vuln labels (same manifest-driven logic as
+before, byte-identical to the W1-16 count) **+ 7,844 new safe labels**
+across 91 of the 118 represented CWE folders, committed to
+`corpus/labels/juliet-cpp.json`.
+
+**Re-baseline (`npm run score -- juliet-cpp --update-baseline`):**
+
+**Before: TP=18, FP=0, FN=2662 → precision=1.000, recall=0.007, F1=0.013.**
+**After: TP=18, FP=857, FN=2662 → precision=0.021, recall=0.007, F1=0.010.**
+
+Precision dropped from a fiction of 1.000 to a real 0.021 — this is the
+intended outcome of a metric that can now fail, not a regression to chase
+down. Per-rule breakdown (`corpus/baselines/juliet-cpp.json`):
+`bpm-owasp-mem-unsafe-string-functions` TP=18/FP=700 (of its original
+18,653 unlabeled findings, 700 now land on a safe-labeled line and score
+as FP, 0 land on a newly-labeled vuln line since no vuln labels changed,
+and **17,953 remain unlabeled** — files outside the `JULIET_PER_CWE_LIMIT`
+bounded subset, where this analysis has no ground truth either way, not a
+labeling defect); `bpm-owasp-mem-integer-overflow-malloc` TP=0/FP=130 (of
+25,021 originally unlabeled); a pre-existing unrelated rule,
+`a07-hardcoded-connection-string-vbnet`, also picked up FP=27 against
+this C/C++ corpus (its pattern is evidently broader than its VB.NET-only
+name implies — a real gap, flagged here rather than chased, since fixing a
+non-Juliet rule's pattern is out of this ticket's `write_scope`).
+
+**Concrete proof the metric can now register a false positive:**
+`CWE114_Process_Control/CWE114_Process_Control__w32_char_connect_socket_01.c:145`
+— `strcpy(data, "C:\\Windows\\System32\\winsrv.dll");` inside `goodG2B()`,
+directly under a `/* FIX: Specify the full pathname for the library */`
+comment. This line is genuinely safe (hardcoded literal well under the
+100-byte destination buffer, exactly what Juliet's ground truth says), but
+`bpm-owasp-mem-unsafe-string-functions` fires on any `strcpy($DST, $SRC)`
+call regardless of buffer safety (it has to — a single-file structural
+rule can't prove buffer sizes), so it correctly now counts as an FP
+against the new safe label. This is precisely the false-positive signal
+the corpus exists to measure and the old adapter could never surface.
+
+**Other three corpora — verified unaffected by this change, but a
+pre-existing drift observed and disclosed rather than silently ignored:**
+`corpus/adapters/juliet.mjs` is the only adapter touched (`git diff
+--stat` confirms only `corpus/adapters/juliet.mjs`,
+`corpus/labels/juliet-cpp.json`, and `corpus/baselines/juliet-cpp.json`
+changed). Re-running `juice-shop` reproduced its committed baseline
+exactly (TP=1/FP=0/FN=39, no regression flagged). Re-running
+`owasp-benchmark-java` and `ossf-cve-benchmark` **without**
+`--update-baseline` (so nothing was written back) showed both have
+already drifted from their committed baselines —
+`owasp-benchmark-java` FP=62→137, `ossf-cve-benchmark` FP=0→45 — but this
+is unrelated to this ticket: `git log <baseline-commit>..HEAD -- packs/`
+shows 63 and 67 rule-pack commits landed on `main` after each baseline was
+last refreshed, respectively (new OWASP rules added across many
+languages since W1-10/W2-02, none of them C/C++). Their baseline files on
+disk are untouched by this change; re-baselining them is a separate,
+pre-existing gap for a different ticket, not folded in here.
+
 ## Scorecard
 
 <!-- SCORECARD:START (generated by scripts/scorecard.mjs — do not hand-edit) -->
@@ -941,7 +1053,7 @@ Rule corpus: **308** rules across 4 packs (opengrep `packs/` + ast-grep `astgrep
 | Corpus | TP | FP | FN | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|
 | juice-shop | 1 | 0 | 39 | 1.000 | 0.025 | 0.049 |
-| juliet-cpp | 18 | 0 | 2662 | 1.000 | 0.007 | 0.013 |
+| juliet-cpp | 18 | 857 | 2662 | 0.021 | 0.007 | 0.010 |
 | ossf-cve-benchmark | 0 | 0 | 39 | n/a | 0.000 | n/a |
 | owasp-benchmark-java | 524 | 62 | 925 | 0.894 | 0.362 | 0.515 |
 
@@ -951,7 +1063,7 @@ _Recall/F1 are n/a per pack: the scorer attributes false negatives at the corpus
 
 | Pack | Rules | TP (all corpora) | FP (all corpora) | Precision |
 |---|---|---|---|---|
-| owasp | 153 | 543 | 62 | 0.898 |
+| owasp | 153 | 543 | 919 | 0.371 |
 | framework | 41 | 0 | 0 | n/a |
 | slop | 108 | 0 | 0 | n/a |
 | secrets | 6 | 0 | 0 | n/a |
