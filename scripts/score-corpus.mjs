@@ -104,11 +104,35 @@ for (const f of findings) {
   const r = (perRule[f.ruleId] ??= { tp: 0, fp: 0 });
   const hitVuln = vuln.find((l) => base(l.file) === f.file && cweOverlap(l.cwe, f.cwe) && lineNear(l.line, f.line));
   if (hitVuln) { tp++; r.tp++; matchedVuln.add(labelKey(hitVuln)); continue; }
-  const hitSafe = safe.find((l) => base(l.file) === f.file && lineNear(l.line, f.line));
+  // FP attribution depends on how precise the safe label is, because the two
+  // kinds of "safe" label assert different things:
+  //
+  //   LINE-level safe label (Juliet: 7844/7844 carry a line; juice-shop 74/74)
+  //     = "this line is correct code". A finding there is a false positive
+  //       whatever weakness it claims. NO CWE gate — gating here would erase
+  //       real evidence: mem-unsafe-string-functions' 700 strcpy-in-good()
+  //       hits on Juliet are honest FPs, and CWE-gating them restored the
+  //       precision=1.000 ARTIFACT that recovering Juliet's safe labels was
+  //       specifically meant to destroy.
+  //
+  //   FILE-level safe label (OWASP Benchmark: 0/1325 carry a line)
+  //     = "this file does not contain CWE-X". Since lineNear(null, x) is true,
+  //       an ungated match charges EVERY finding anywhere in the file as an FP
+  //       for a weakness the label says nothing about. That is how one CWE-390
+  //       code-health rule (bpm-slop-empty-catch-java) dropped this corpus's
+  //       security precision 0.894 -> 0.793 while every security rule's tp/fp
+  //       stayed byte-identical. Its 75 "false positives" were genuine empty
+  //       catch blocks in files whose ground truth only says "not vulnerable
+  //       to CWE-22". So: CWE gate applies, and only there.
+  const hitSafe = safe.find((l) => base(l.file) === f.file && lineNear(l.line, f.line)
+    && (l.line != null || cweOverlap(l.cwe, f.cwe)));
   if (hitSafe) { fp++; r.fp++; continue; }
-  // finding not on any labeled line: count as FP only in strict mode. Default: ignore
-  // (unlabeled lines aren't ground truth either way), but track for review.
-  r.unlabeled = (r.unlabeled || 0) + 1;
+  // Counted separately, never hidden: a cross-taxonomy hit lands on a labeled
+  // file but reports a different weakness class. Tracked so a rule can't quietly
+  // escape FP accounting by carrying a wrong or missing CWE tag.
+  const onLabeledFile = safe.some((l) => base(l.file) === f.file) || vuln.some((l) => base(l.file) === f.file);
+  if (onLabeledFile) r.crossTaxonomy = (r.crossTaxonomy || 0) + 1;
+  else r.unlabeled = (r.unlabeled || 0) + 1;
 }
 const consideredVuln = ruleFilter ? vuln.filter((l) => cweOfRuleFilter(l)) : vuln;
 const fn = consideredVuln.filter((l) => !matchedVuln.has(labelKey(l))).length;
@@ -134,6 +158,16 @@ if (existsSync(basePath)) {
   if (dP < -threshold || dR < -threshold) { console.log(`  ⚠ REGRESSION (> ${threshold})`); regressed = true; }
 } else {
   console.log('  (no baseline yet)');
+}
+
+// --emit writes the CURRENT result (including perRule) somewhere harmless, so a
+// regression can be diffed rule-by-rule against the committed baseline without
+// overwriting it. Triaging a red gate previously required --update-baseline,
+// i.e. destroying the evidence to look at it.
+const emitPath = valOf('--emit');
+if (emitPath) {
+  writeFileSync(emitPath, JSON.stringify(current, null, 2) + '\n');
+  console.log(`  current result → ${emitPath} (baseline untouched)`);
 }
 
 if (updateBaseline) {

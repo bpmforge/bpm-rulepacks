@@ -582,14 +582,67 @@ coverage it doesn't have. Include it with
 3. **A hook that only exists on one machine.** `core.hooksPath` + a tracked
    `scripts/hooks/` means a fix reaches every clone on the next pull.
 
-### Standing regression — do NOT rebaseline it
+### The owasp-benchmark-java regression — RESOLVED 2026-07-29, without rebaselining
 
-`owasp-benchmark-java` is **red** at Δprecision −0.101 (0.894 → 0.793, recall
-unchanged at 0.362). The other three corpora match their baselines exactly
-(Δ+0.000), which is what proves this is a genuine regression rather than a
-stale baseline. **Fix the rule; do not update the baseline to go green** —
-rebaselining a regression erases the only signal that it happened. The gate
-prints this reminder on every red run.
+`owasp-benchmark-java` was red at Δprecision −0.101 (0.894 → 0.793, recall
+unchanged). Root cause was **a scoring defect, not a rule defect**, and the
+per-rule diff is what proved it:
+
+```
+bpm-owasp-a02-insecure-random-java     193/0 -> 193/0     Δ 0
+bpm-owasp-a03-path-traversal-java       41/32 ->  41/32   Δ 0
+bpm-owasp-a03-sql-injection-java        20/15 ->  20/15   Δ 0
+   ... every security rule byte-identical ...
+bpm-slop-empty-catch-java                0/0  ->   0/75   Δ +75   <<<
+```
+
+**100% of the delta came from one newly-added CWE-390 code-health rule** —
+`bpm-slop-empty-catch-java`, which is *correct*: the sites it flags are
+genuine `catch (Exception e) { }` blocks (verified by hand at
+`BenchmarkTest00001.java:97`, an empty catch around `fis.close()`).
+
+The scorer charged them as security false positives because **FP attribution
+was not CWE-gated while TP attribution was**. OWASP Benchmark's labels are
+file-level (0 of 1,325 safe labels carry a line) and `lineNear(null, x)`
+returns true, so *any* finding anywhere in a safe-labeled file was counted as
+a false positive for a weakness the label says nothing about. Adding any
+code-health rule to a security corpus mechanically degraded precision.
+
+**The fix is granularity-aware, not a blanket CWE gate.** The first attempt —
+requiring CWE overlap for every FP — fixed Java and simultaneously restored
+Juliet's precision to **1.000**, the exact artifact that recovering Juliet's
+safe labels was meant to destroy. The two label kinds assert different things:
+
+| Label | Asserts | FP rule |
+|---|---|---|
+| **line-level** (Juliet 7844/7844, juice-shop 74/74) | "this line is correct code" | any finding there is an FP, **no CWE gate** |
+| **file-level** (OWASP Benchmark 0/1325) | "this file lacks CWE-X" | only CWE-X findings are FPs |
+
+Out-of-taxonomy hits are now counted as `crossTaxonomy` in `perRule` —
+**tracked, never hidden**, so a rule cannot escape FP accounting by carrying a
+wrong or missing CWE tag.
+
+Post-fix, all four corpora sit at Δ+0.000 against their **existing committed
+baselines**. Java returned to 0.894 and Juliet stayed at 0.021 with all 857
+false positives intact. No baseline was rewritten; the standing rule defects
+below are still red and still owed a fix.
+
+### Still open — rules with real precision problems
+
+Genuine, confirmed by the same per-rule method. These are rule defects, not
+scoring artifacts:
+
+| Rule | Corpus | TP | FP | Verdict |
+|---|---|---|---|---|
+| `mem-unsafe-string-functions` | juliet-cpp | 18 | **700** | Fires on every `strcpy`, including safe bounded uses in `good()` |
+| `mem-integer-overflow-malloc` | juliet-cpp | **0** | 130 | Never produced a true positive; `malloc(sizeof(T)*n)` is usually safe |
+| `a07-hardcoded-connection-string-vbnet` | juliet-cpp | **0** | 27 | Never produced a true positive |
+
+Two of the three have **never** produced a single true positive on any corpus.
+Deletion is on the table for those; narrowing is the alternative. A caveat
+that must be verified before acting: the scorer matches on `line ±2`, which
+may inflate roughly 157 of Juliet's 857 false positives. Only
+`mem-unsafe-string-functions` has a hand-verified concrete FP example.
 
 ### The dormant workflow
 
