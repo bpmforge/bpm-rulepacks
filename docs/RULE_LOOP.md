@@ -160,6 +160,38 @@ defect the rule has never seen and checking the rule still fires.
 
 ---
 
+## When coverage does not move, suspect the scorer too
+
+Step 7 says a fix that does not move coverage did not fix the defect. That is the
+right default — and iteration 1 of the loop found the exception, which is worth
+stating precisely so nobody grinds on a phantom.
+
+D1b (`jwtSecret` at `config.js:6`) was genuinely fixed: the rule went from
+matching nothing on that line to producing a new, correctly-tagged finding.
+Coverage stayed at 4/16 anyway. The cause was in the matcher, not the rule:
+
+```
+finding line 5 -> credited to D1
+finding line 6 -> credited to D1     <- D1b can never be covered
+distinct labels covered: 1 of 2
+```
+
+`vuln.find()` took the **first** label within the ±2 line window. D1 (line 5)
+and D1b (line 6) share a file and a CWE and sit one line apart, so both findings
+were credited to D1 and D1b was unreachable *by construction* — no rule
+improvement could ever have covered it. Fixed by preferring an **unclaimed**
+label, then the nearest line.
+
+**The discriminator between "unfixed defect" and "unscoreable label":** check
+whether the detection changed at all, independently of the score. Run the single
+rule against the single file and count findings before and after. If detections
+increased and coverage did not, the label is unreachable — that is a scorer
+defect, and it must be filed rather than worked around.
+
+The build agent that hit this reported it as a scorer bug instead of claiming a
+win or silently retrying. That is the behaviour the loop needs: **an iteration
+that cannot demonstrate its result should say so.**
+
 ## What the loop must never do
 
 - **Rebaseline to go green.** A red gate means fix the rule. The only legitimate

@@ -133,7 +133,23 @@ const duplicatesDropped = findings.length - dedupedFindings.length;
 for (const f of dedupedFindings) {
   if (ruleFilter && f.ruleId !== ruleFilter) continue;
   const r = (perRule[f.ruleId] ??= { tp: 0, fp: 0 });
-  const hitVuln = vuln.find((l) => base(l.file) === f.file && cweOverlap(l.cwe, f.cwe) && lineNear(l.line, f.line));
+  // Pick the BEST candidate label, not the first one in file order.
+  //
+  // `vuln.find()` was greedy: with two labels one line apart in the same file
+  // sharing a CWE, both within the ±2 window, every finding was credited to
+  // whichever label appeared first — so the second label could never be
+  // covered no matter how well the rules worked. sampleco's D1 (config.js:5,
+  // apiKey) and D1b (config.js:6, jwtSecret) are exactly that shape: fixing
+  // the rule so line 6 fires produced a second, genuinely new finding and
+  // coverage did not move. A defect that cannot be scored as caught is a
+  // defect the loop would grind on forever.
+  //
+  // Prefer an unclaimed label, then the nearest line. Same finding set, but
+  // distinct detections now map to distinct labels.
+  const candidates = vuln.filter((l) => base(l.file) === f.file && cweOverlap(l.cwe, f.cwe) && lineNear(l.line, f.line));
+  const dist = (l) => (l.line == null || f.line == null ? Infinity : Math.abs(l.line - f.line));
+  const unclaimed = candidates.filter((l) => !matchedVuln.has(labelKey(l))).sort((a, b) => dist(a) - dist(b));
+  const hitVuln = unclaimed[0] ?? candidates.sort((a, b) => dist(a) - dist(b))[0];
   if (hitVuln) { tp++; r.tp++; matchedVuln.add(labelKey(hitVuln)); continue; }
   // FP attribution depends on how precise the safe label is, because the two
   // kinds of "safe" label assert different things:
