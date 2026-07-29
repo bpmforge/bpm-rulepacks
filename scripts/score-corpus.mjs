@@ -327,7 +327,17 @@ function buildAstGrepCweMap(dir) {
 function labelKey(l) { return `${base(l.file)}:${l.line ?? '*'}:${(l.cwe || []).join(',')}`; }
 function lineNear(a, b) { if (a == null || b == null) return true; return Math.abs(a - b) <= LINE_TOLERANCE; }
 function cweOverlap(a, b) { const A = arr(a), B = arr(b); return A.length === 0 || B.length === 0 ? false : A.some((x) => B.includes(x)); }
-function arr(x) { return (Array.isArray(x) ? x : x == null ? [] : [x]).map((n) => String(n).replace(/^CWE-?/i, '')); }
+// Normalise a CWE id to its bare number. STRIPPING LEADING ZEROS IS LOAD-BEARING:
+// ossf-cve-benchmark labels its CWEs zero-padded ("079", "022", "020") while our
+// rules emit metadata.cwe: [79]. Compared as strings, "079" !== "79", so every
+// finding on that corpus scored as cross-taxonomy and the corpus reported
+// recall 0.000 for months -- read as "our rules cannot find real CVEs" when it
+// was a string-formatting mismatch. That label file even mixes both forms
+// ("79": 2 and "079": 12 in the same file).
+function arr(x) {
+  return (Array.isArray(x) ? x : x == null ? [] : [x])
+    .map((n) => String(n).replace(/^CWE-?/i, '').replace(/^0+(?=\d)/, ''));
+}
 function cweOfRuleFilter() { return true; }
 function extractCwe(res, ruleMeta) {
   const tags = ruleMeta?.properties?.tags || [];
