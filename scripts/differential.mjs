@@ -18,29 +18,32 @@
 // LLM-ONLY bucket without triage builds detectors for hallucinations and then
 // scores them as recall. Every row in that bucket is a CANDIDATE.
 //
-// ── INPUT CONTRACT (the current blocker) ────────────────────────────────────
+// ── INPUT CONTRACT ──────────────────────────────────────────────────────────
 //
 // The LLM side must be SARIF with a physical location: file + startLine.
-// Matching is on (file, line ±2, CWE) — the same matcher score-corpus.mjs uses,
-// deliberately, so "the CPU found it" means the same thing here as it does
-// against a labeled corpus.
 //
-// AS OF 2026-07-29 THE EXPERT SYSTEM DOES NOT EMIT THIS. Checked against the
-// real, fully-triaged Shipwright dogfood run
-// (docs/dogfood/findings-tickets.json, 55 findings):
+// Matching is RANGE CONTAINMENT, not point proximity: a CPU finding about a
+// block carries startLine..endLine, and an LLM finding anywhere inside that
+// span (±2) is the same defect. Point matching understated the catch-rate by
+// 3x on the first real run — our empty-catch rule reports the `try` line while
+// a reviewer reports the `catch` line 3-9 lines later, so one defect scored as
+// two disjoint findings. quarry went 7.7% -> 23.1% on that fix alone.
 //
-//     findings with a file:line reference ......  0 of 55
-//     findings naming any file at all .......... 11 of 55  (bare basenames,
-//                                                 e.g. "server.ts", no path)
-//     findings with `evidence` populated .......  0 of 55
+// ON LOCATIONS, corrected 2026-07-29. An earlier version of this header said
+// the expert system does not emit locations. That was wrong: agents/code-review/
+// FINDINGS_SCHEMA.md already REQUIRES `file` as "path:line — exact line of the
+// worst instance". The contract is right; ENFORCEMENT is missing, and
+// compliance varies wildly:
+//     bpm-opencode-experts/docs/reviews/SECURITY_FINDINGS.md   5 of 6 located
+//     kryptkeeper/docs/reviews/CODE_REVIEW_2026-04-09.md       0 located
+//     shipwright/docs/dogfood/findings-tickets.json            0 of 55 located
+// The fix is a validator that fails a findings document lacking file:line, not
+// a schema change. A review run with the location requirement stated in the
+// prompt produced 52 of 52 located and 52 of 52 grounded, so it is enforceable.
 //
-// The findings are prose recommendations. There is no key to join on, so the
-// differential cannot be computed — not because the harness is missing, but
-// because one side does not report WHERE. That is a change to the expert
-// system's output contract, not to this repo, and it is the single
-// prerequisite for measuring CPU-catch-rate on anything but a planted corpus.
+// Unlocatable findings are EXCLUDED and reported as excluded. "The CPU missed
+// it" and "nobody said where it is" are different facts and must not be summed.
 //
-// Until then this tool runs, and refuses to invent a match it cannot make.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, realpathSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -96,15 +99,26 @@ if (unlocatable) {
 say();
 
 const llmLoc = llm.filter((f) => f.file && f.line != null);
-const near = (a, b) => Math.abs(a - b) <= 2;
+// Match on RANGE CONTAINMENT, not point proximity. A CPU finding about a block
+// spans many lines: our empty-catch rule reports the `try` line, while a human
+// or an LLM reporting the same defect points at the `catch` line 3-9 lines
+// later. With a ±2 point window those scored as two different findings, and the
+// CPU-catch-rate was understated accordingly — quarry's robots.ts:91 vs :100,
+// bing.ts:81 vs :84 and ddg.ts:125 vs :128 were each ONE defect counted as two.
+// opengrep's SARIF already carries endLine; we were throwing it away.
+const overlaps = (c, llmLine) => {
+  const lo = Math.min(c.line, c.endLine ?? c.line) - 2;
+  const hi = Math.max(c.line, c.endLine ?? c.line) + 2;
+  return llmLine >= lo && llmLine <= hi;
+};
 const cweOverlap = (a, b) => a.length && b.length && a.some((x) => b.includes(x));
 
 const both = [], llmOnly = [];
 for (const l of llmLoc) {
-  const hit = cpu.find((c) => same(c.file, l.file) && near(c.line, l.line) && (!l.cwe.length || !c.cwe.length || cweOverlap(c.cwe, l.cwe)));
+  const hit = cpu.find((c) => same(c.file, l.file) && overlaps(c, l.line) && (!l.cwe.length || !c.cwe.length || cweOverlap(c.cwe, l.cwe)));
   (hit ? both : llmOnly).push({ ...l, cpuRule: hit?.ruleId });
 }
-const cpuOnly = cpu.filter((c) => !llmLoc.some((l) => same(c.file, l.file) && near(c.line, l.line)));
+const cpuOnly = cpu.filter((c) => !llmLoc.some((l) => same(c.file, l.file) && overlaps(c, l.line)));
 
 const catchRate = llmLoc.length ? both.length / llmLoc.length : null;
 say('| Bucket | Count | Meaning |');
@@ -150,6 +164,7 @@ function collect(sarif, into) {
       into.push({
         ruleId: res.ruleId, file: rel(loc?.artifactLocation?.uri || ''),
         line: loc?.region?.startLine ?? null,
+        endLine: loc?.region?.endLine ?? loc?.region?.startLine ?? null,
         cwe: cweOf(res, meta[res.ruleId]), message: res.message?.text || '',
       });
     }

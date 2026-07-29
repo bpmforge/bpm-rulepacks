@@ -1,0 +1,47 @@
+id: bpm-house-catch-discards-error
+language: ts
+severity: warning
+message: >
+  This catch block has NO error binding, so the error it caught is
+  structurally unreachable — it cannot be logged, inspected, wrapped, or
+  rethrown, because nothing holds it. The handler runs its recovery (a
+  fallback value, a fall-through to another path) and the reason the original
+  operation failed is destroyed at this line. An operator sees a degraded
+  result with no way to learn why, and a retry loop built this way looks
+  healthy while every attempt fails. Bind the error (`catch (err)`) and do
+  something with it: log it with context, attach it to the returned value, or
+  rethrow it wrapped.
+rule:
+  all:
+    - pattern: "try { $$$BODY } catch { $$$HANDLER }"
+    # `catch {}` with an EMPTY body is bpm-slop-empty-catch's finding. Excluded
+    # here so the two rules stay disjoint and one defect is never reported
+    # twice — double-reporting inflates a findings count without adding a fact.
+    - not:
+        pattern: "try { $$$BODY } catch { }"
+metadata:
+  license: proprietary
+  provenance: "derived:quarry/LOG-catch-discards-error"
+  cwe: [778]
+  confidence: medium
+  # MEASURED FLEET VOLUME, recorded so nobody is surprised by it in a report:
+  #   threatforge 275 | shipwright 60 | quarry 20 | lodestone 20 | repopulse 5
+  #   kryptkeeper 1 | ai-daytrader 0 | retroforge 0
+  # Every one is CORRECT by construction — a catch with no binding cannot reach
+  # the error, that is a syntactic fact, not an inference. There are no false
+  # positives here. What there is, is a prioritisation problem: 275 findings in
+  # one repo will drown a report, which is how mem-unsafe-string-functions
+  # became unusable at 18 TP / 700 FP.
+  #
+  # A narrowing WAS tested and REJECTED: requiring the try block to contain an
+  # `await` (i.e. an async I/O path) cuts quarry 20 -> 2 and threatforge
+  # 275 -> 115. It also drops quarry's src/fetch/cache.ts:51 — one of the real
+  # findings this rule exists to catch — because that block does SYNCHRONOUS
+  # readFileSync I/O. Losing true positives to reduce volume is the wrong
+  # trade, so the rule stays broad and honest at confidence: medium.
+  #
+  # The right refinement is ranking, not exclusion: order by whether the try
+  # block performs I/O and whether the handler substitutes a value the caller
+  # then branches on. That is a scoring change, not a pattern change.
+  concept: logging_audit
+  since: "0.2.0"
