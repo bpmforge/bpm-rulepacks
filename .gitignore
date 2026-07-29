@@ -8,3 +8,4 @@ out.sarif
 
 # code-search-mcp index
 .code-search/
+.sweeps/

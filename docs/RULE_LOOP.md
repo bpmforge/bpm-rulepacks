@@ -22,7 +22,7 @@ corpus regresses, and an adversary failed to show it was overfitted.
 | 6 | Fix the rule → **GREEN** | same command | — |
 | 7 | Re-score the corpus | `npm run score -- sampleco` | fixture passes, ground truth unmoved |
 | 8 | Gate every other corpus | `npm run gate` | buying recall with false positives elsewhere |
-| 9 | **Challenge** the fix | see below | a rule that matches the sample repo's exact text |
+| 9 | **Challenge** the fix | `npm run report -- <rule.yaml>` | a rule that matches the sample repo's exact text |
 | 10 | Commit | — | — |
 
 ### Step 5 is not optional
@@ -117,6 +117,32 @@ too, which is the first evidence the fix generalizes.
 the rule was written against SampleCo and improved an unrelated corpus.
 
 ---
+
+## Steps 1-8 are mechanical. Do not spend a model on them.
+
+`npm run report -- <rule.yaml>` emits the whole evaluation: fixture RED/GREEN,
+per-corpus TP/FP/crossTaxonomy for that rule, a sweep across every repo in
+`scripts/sweep-repos.json`, every finding with its matched line, and — with
+`--snapshot` — the **FP delta** against the last run, naming exactly which
+findings a rule change added and removed.
+
+That delta is the number that matters and the one that kept being derived by
+hand: copy the old rule to a temp file, scan N repos twice, diff the counts.
+Three loop iterations in a row an agent was asked to "run an FP sweep and
+classify every finding", and each burned 150–230k tokens and 130–210 tool calls
+re-deriving that same procedure. It is a loop over a list, not judgment. Paying
+a model to improvise it — inside the toolchain built to stop paying models for
+mechanical work — is the failure this whole program exists to remove.
+
+**The only step a script cannot do is deciding whether a finding is real.** The
+report stops exactly there and hands over a table to mark up. Verified by
+re-widening `express-route-body-no-validation`: the delta reported +5/-0 and
+named all five false positives, identically to the manual sweep that had cost an
+agent its entire context.
+
+A missing repo is reported `MISSING`, never skipped silently — a sweep that
+scanned three of eight repos and printed "0 findings" would read as a clean bill
+of health it never earned.
 
 ## The build loop ("Ralph Wiggum")
 

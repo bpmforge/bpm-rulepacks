@@ -1,0 +1,13 @@
+{
+  "_comment": "Real repositories a rule is swept against before it ships. Real code, not corpora — corpora tell you recall, these tell you what a customer's report would look like. A missing repo is reported MISSING and never counted as clean. Override per-run with --repos a,b.",
+  "repos": [
+    "~/Code/shipwright",
+    "~/Code/repopulse",
+    "~/Code/lodestone",
+    "~/Code/quarry",
+    "~/Code/threatforge",
+    "~/Code/ai-daytrader",
+    "~/Code/kryptkeeper",
+    "~/Code/retroforge"
+  ]
+}

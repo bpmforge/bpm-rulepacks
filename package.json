@@ -13,7 +13,8 @@
     "gate": "node scripts/gate-corpus.mjs",
     "scan": "node scripts/scan.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
-    "misses": "node scripts/next-miss.mjs"
+    "misses": "node scripts/next-miss.mjs",
+    "report": "node scripts/rule-report.mjs"
   },
   "license": "SEE LICENSE IN LICENSE"
 }
