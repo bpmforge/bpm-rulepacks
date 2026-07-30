@@ -19,6 +19,24 @@ rule:
     # twice — double-reporting inflates a findings count without adding a fact.
     - not:
         pattern: "try { $$$BODY } catch { }"
+    # A handler that THROWS does not discard the failure — the caller still gets
+    # an error and an operator still learns something went wrong. The error
+    # OBJECT is lost (no `{ cause }`), which is a real but different and much
+    # weaker finding. 9 fleet hits, including repopulse's
+    # `throw new ForgeSsrfError('not a valid URL', url)` — deliberate conversion
+    # to a domain error, which is correct handling, not destruction.
+    - not:
+        has:
+          kind: throw_statement
+          stopBy: end
+    # A handler that LOGS is signalling the failure. This rule's own message says
+    # "an operator sees a degraded result with no way to learn why" — that is
+    # simply false when the handler writes to the log. 11 fleet hits.
+    - not:
+        has:
+          kind: call_expression
+          stopBy: end
+          regex: "(?i)^(console|logger|log)\\.(error|warn|info|debug|log|trace|fatal)\\b"
 metadata:
   license: proprietary
   provenance: "derived:quarry/LOG-catch-discards-error"
@@ -27,11 +45,40 @@ metadata:
   # MEASURED FLEET VOLUME, recorded so nobody is surprised by it in a report:
   #   threatforge 275 | shipwright 60 | quarry 20 | lodestone 20 | repopulse 5
   #   kryptkeeper 1 | ai-daytrader 0 | retroforge 0
-  # Every one is CORRECT by construction — a catch with no binding cannot reach
-  # the error, that is a syntactic fact, not an inference. There are no false
-  # positives here. What there is, is a prioritisation problem: 275 findings in
-  # one repo will drown a report, which is how mem-unsafe-string-functions
-  # became unusable at 18 TP / 700 FP.
+  # ⚠ THE "NO FALSE POSITIVES" CLAIM THAT USED TO BE HERE WAS WRONG.
+  #
+  # It read: "Every one is CORRECT by construction — a catch with no binding
+  # cannot reach the error, that is a syntactic fact, not an inference. There are
+  # no false positives here." That conflated two different claims:
+  #
+  #   the error OBJECT is unreachable   syntactic fact, always true
+  #   the FAILURE is silently swallowed inference, and NOT always true
+  #
+  # The rule is named and messaged for the second. Clustering all 332 fleet hits
+  # by their catch-clause body found 20 where the second is false:
+  #
+  #   9   handler THROWS   repopulse `throw new ForgeSsrfError(...)`, shipwright
+  #                        `throw new ProviderAuthError(...)` — deliberate
+  #                        conversion to a domain error. The caller still gets an
+  #                        error. Losing the original (no `{ cause }`) is real but
+  #                        weaker, and is not what this message describes.
+  #   11  handler LOGS     threatforge `logger.error({deliveryId}, "[webhook-retry]
+  #                        Cannot ...")`. The message claims an operator "sees a
+  #                        degraded result with no way to learn why". Not true
+  #                        when the handler writes to the log.
+  #
+  # Both excluded. 332 -> 313 fleet hits.
+  #
+  # THE LESSON: a rule that grades itself on the SYNTACTIC property it matches,
+  # rather than on the DEFECT it claims, will always report zero false positives.
+  # The confidence was circular. Same failure as unbounded-response-read, which
+  # was answering three questions while measuring only its own volume.
+  #
+  # What remains is not a precision problem, it is a prioritisation problem: 313
+  # findings will drown a report, which is how mem-unsafe-string-functions became
+  # unusable at 18 TP / 700 FP. Those 313 are genuinely silent swallows, many
+  # carrying a comment explaining the intent — and a comment is not a signal an
+  # operator can see at 3am, which is the whole premise.
   #
   # A narrowing WAS tested and REJECTED: requiring the try block to contain an
   # `await` (i.e. an async I/O path) cuts quarry 20 -> 2 and threatforge

@@ -24,3 +24,32 @@ export function bestEffort(p: string): void {
     unlinkSync(p);
   } catch {}
 }
+
+// ── Two families this rule claimed could not exist. ──────────────────────────
+// Its metadata asserted "Every one is CORRECT by construction ... There are no
+// false positives here." That conflated two different claims: the error OBJECT
+// is unreachable (a syntactic fact, always true) and the FAILURE is silently
+// swallowed (an inference, and false for both shapes below).
+
+// Rethrow as a domain error. The caller still gets an error; the failure is not
+// destroyed. Losing the original via no `{ cause }` is a real but far weaker
+// finding, and it is not the one this rule's message describes.
+// Real shape: repopulse ForgeSsrfError.
+export function parseUrlOrThrow(url: string): URL {
+  try {
+    return new URL(url);
+  } catch {
+    throw new ForgeSsrfError("not a valid URL", url);
+  }
+}
+
+// Handler logs. This rule's message says an operator "sees a degraded result
+// with no way to learn why" — untrue when the handler writes to the log.
+// Real shape: threatforge webhook-retry.
+export async function updateLastLogin(userId: string): Promise<void> {
+  try {
+    await db.users.touch(userId);
+  } catch {
+    console.error("Failed to update lastLoginAt for OAuth login", { userId });
+  }
+}
