@@ -1,0 +1,167 @@
+[
+  {
+    "id": "CH-01",
+    "domain": "codehealth",
+    "file": "src/pipeline.ts",
+    "line": 54,
+    "cwe": ["CWE-704"],
+    "severity": "MEDIUM",
+    "title": "Type assertion lies about object shape: `{}` cast to `FetchResult`",
+    "code": "          fetched: {} as FetchResult,",
+    "why": "`{}` has none of FetchResult's required fields (url, finalUrl, status, contentType, fetchedAt, cached, fetch, extract) but the compiler is told to trust it via `as`. The object is only made real a few lines later in `searchAndFetch`'s `merged.forEach` fill loop, so any future code path that reads `.fetched` between `dedupe()` returning and that fill (e.g. a new progress callback, a new early-return, or a test calling `dedupe()` directly) silently gets `undefined` fields with no type error to catch it."
+  },
+  {
+    "id": "CH-02",
+    "domain": "codehealth",
+    "file": "src/cli.ts",
+    "line": 39,
+    "cwe": ["CWE-704"],
+    "severity": "MEDIUM",
+    "title": "CLI --engines value cast to EngineId[] with no validation",
+    "code": "      args.engines = next.split(\",\").map((s) => s.trim()) as EngineId[];",
+    "why": "User-supplied CLI text is asserted to be `EngineId[]` with no check against the actual union (\"ddg\"|\"brave\"|\"bing\"|\"google\"). A typo like `--engines goggle` produces a string that type-checks as EngineId but isn't one; downstream in index.ts `ALL[id]` is `undefined` and `adapter.search(...)` throws a generic TypeError (\"Cannot read properties of undefined\") instead of a clear \"unknown engine 'goggle'\" message — the failure surfaces as an opaque per-engine FAIL line instead of a helpful CLI usage error."
+  },
+  {
+    "id": "CH-03",
+    "domain": "codehealth",
+    "file": "src/mcp.ts",
+    "line": 254,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "Dead defensive check: `seen.has(key)` can never be true here",
+    "code": "          if (seen.has(key)) continue;",
+    "why": "In the web_search tool handler (lines 234-265), `seen` is only ever populated in this same else-branch, in lockstep with pushing to `merged`. The preceding `merged.find((m) => normalizeUrl(m.url) === key)` on line 247 already returns truthy for any key already processed, so control only reaches line 254 when the key has never been seen — `seen.has(key)` is provably always false there. It is misleading dead code that suggests a protection that doesn't exist, and it duplicates (with an O(n) `.find` instead of a Map) the dedup pattern that `pipeline.ts`'s `dedupe()` and this same file's `serpWithFallback()` implement correctly with a single Map — three different dedup implementations for the same concept in one codebase."
+  },
+  {
+    "id": "CH-04",
+    "domain": "codehealth",
+    "file": "src/mcp.ts",
+    "line": 526,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "normalizeUrl() duplicated 3x with behavioral drift between copies",
+    "code": "function normalizeUrl(url: string): string {",
+    "why": "Near-identical `normalizeUrl` functions exist in `src/pipeline.ts:66`, `src/pullmd-serp.ts:409`, and here. pipeline.ts's version strips an extra tracking param, \"ref\", that the mcp.ts and pullmd-serp.ts copies do not (compare the stripParams lists). Because the three copies diverged, a URL differing only by `?ref=...` dedupes as the same result via the CLI/pipeline path (`searchAndFetch`) but as two separate results via the MCP `web_search`/`web_search_pullmd` tools — silent, inconsistent behavior for the same conceptual operation depending on which entry point is used."
+  },
+  {
+    "id": "CH-05",
+    "domain": "codehealth",
+    "file": "src/engines/http-configs.ts",
+    "line": 16,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "decodeBing/decodeDdg reimplement decoders.ts instead of importing it",
+    "code": "function decodeBing(href: string): string {",
+    "why": "This function (lines 16-30) and `decodeDdg` (lines 6-14) are character-for-character duplicates of `decodeBingRedirect` and `decodeDdgUddg` already exported from src/decoders.ts, which even has its own dedicated test file (tests/decoders.test.ts). Both run in plain Node context, so there's no execution-context reason (unlike the necessarily-inlined copy inside bing.ts's page.evaluate closure) not to import the shared implementation; a future bug fix to decoders.ts silently won't reach the copy used by every HTTP-path search engine."
+  },
+  {
+    "id": "CH-06",
+    "domain": "codehealth",
+    "file": "src/fetch/cache.ts",
+    "line": 48,
+    "cwe": ["CWE-704"],
+    "severity": "MEDIUM",
+    "title": "Disk cache JSON is cast to CacheEntry with no shape validation",
+    "code": "    const entry = JSON.parse(readFileSync(p, \"utf8\")) as CacheEntry;",
+    "why": "Untyped external data (a JSON file on disk, which can be stale-format, hand-edited, or truncated from a prior partial write) is asserted to match `CacheEntry` with no runtime check. If `expiresAt` is missing or malformed, `Date.parse(entry.expiresAt)` on the next line returns `NaN`, and `NaN < Date.now()` evaluates to `false` — the expiry check fails open, so a corrupt entry is returned to the caller as if it were a valid, unexpired cache hit rather than being treated as a miss."
+  },
+  {
+    "id": "CH-07",
+    "domain": "codehealth",
+    "file": "src/pullmd-serp.ts",
+    "line": 172,
+    "cwe": ["CWE-1121"],
+    "severity": "MEDIUM",
+    "title": "parseBrave() mixes three unrelated parsing strategies in one 88-line function",
+    "code": "function parseBrave(md: string): SerpResult[] {",
+    "why": "Spans lines 172-259 (88 lines) and handles three independent extraction concerns in sequence: web-result anchors (loop at line 191), Reddit/StackOverflow top-answer blocks (regex loop at line 228), and inline Reddit Q&A blocks (regex loop at line 245), each with its own regex and its own `seen`-based dedup bookkeeping. Counted at least 10 branch points (ifs/ternaries/compound && / ||: lines 179, 181, 193, 201, 205, 209, 231, 247, plus the two loop-internal continues). None of the three strategies is independently unit-tested or independently callable — a change to Reddit's markdown shape risks breaking the unrelated web-result path since they share local state (`body`, `seen`) in one function body."
+  },
+  {
+    "id": "CH-08",
+    "domain": "codehealth",
+    "file": "src/cli.ts",
+    "line": 130,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "Snippet truncation length is a different, unnamed magic number in two sibling formatters",
+    "code": "          r.snippet.length > 220 ? r.snippet.slice(0, 217) + \"...\" : r.snippet;",
+    "why": "formatHuman() truncates snippets at 220/217 chars here, while the sibling formatEnriched() (line 146) truncates the same conceptual field at 200/197 chars. Neither value is a named constant, so the inconsistency reads as unintentional drift rather than a deliberate choice, and a future edit to one is unlikely to update the other."
+  },
+  {
+    "id": "CH-09",
+    "domain": "codehealth",
+    "file": "src/extract/rank.ts",
+    "line": 158,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "Unnamed magic numbers in the early-position ranking boost",
+    "code": "    const earlyBoost = 1 + 0.15 * Math.exp(-index / 5);",
+    "why": "0.15 (max boost magnitude) and 5 (decay rate) directly control how strongly a paragraph's position in the source document affects its final relevance score, but neither is a named constant or documented, unlike the adjacent BM25 constants `k1`/`b` which at least use standard notation. Tuning or reviewing this heuristic requires reverse-engineering what the two bare numbers do from the exponent shape alone."
+  },
+  {
+    "id": "CH-10",
+    "domain": "codehealth",
+    "file": "src/extract/paywall.ts",
+    "line": 48,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "Paywall heuristic thresholds are unnamed inline magic numbers",
+    "code": "  const visibleToHiddenRatio = textLength / Math.max(1, contentHtml.length);",
+    "why": "detectPaywall() encodes four separate unnamed thresholds across lines 41-48 (800, 200, 400, 0.05) that jointly decide whether a page is paywalled. None is a named constant explaining what it represents (e.g. MIN_LIKELY_FULL_ARTICLE_CHARS), so changing the sensitivity of the heuristic means guessing which bare number to touch and what side effect it has on the other three conditions."
+  },
+  {
+    "id": "CH-11",
+    "domain": "codehealth",
+    "file": "src/index.ts",
+    "line": 98,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "search() and searchAll() give callers different error-handling contracts for the same adapters",
+    "code": "  return adapter.search(query, { top, debug, headless, timeoutMs });",
+    "why": "searchAll() (lines 45-86) wraps every adapter call in try/catch and always resolves with an `EngineRun` carrying `ok`/`error` fields, never rejecting. search() (lines 88-99), exported from the same module for the same set of adapters, has no try/catch and lets an adapter failure propagate as a rejected promise. A caller who learned the \"always resolves, check .ok\" pattern from searchAll() and reaches for the singular search() for a one-engine query will get an uncaught rejection instead."
+  },
+  {
+    "id": "CH-12",
+    "domain": "codehealth",
+    "file": "src/pullmd-serp.ts",
+    "line": 369,
+    "cwe": [],
+    "severity": "HIGH",
+    "title": "The SERP markdown parsers (parseDDG/parseMojeek/parseBrave/parseStartpage) have zero tests",
+    "code": "export async function pullmdSearch(",
+    "why": "tests/ has no test file for pullmd-serp.ts. The four parser functions (parseDDG line 106, parseMojeek line 147, parseBrave line 172, parseStartpage line 270) are pure string/regex logic with no I/O — trivially unit-testable against fixture markdown — yet none is covered, despite being the most brittle code in the repo: each parser depends on a specific, undocumented-elsewhere markdown shape that a search engine's HTML can silently change at any time, and there is currently nothing that would catch such a regression before it reached an agent's search results."
+  },
+  {
+    "id": "CH-13",
+    "domain": "codehealth",
+    "file": "src/pipeline.ts",
+    "line": 32,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "dedupe(), normalizeUrl(), and pool() in pipeline.ts have no tests",
+    "code": "function dedupe(",
+    "why": "searchAndFetch() is the library's primary composed entry point (used by both the CLI --enrich path and, indirectly, mcp.ts's web_research tool), but its core merge logic — dedupe() (line 32), normalizeUrl() (line 66), and the worker-pool helper pool() (line 89) — are pure functions with zero unit tests. tests/rank.test.ts and tests/decoders.test.ts show the project does unit-test pure helpers elsewhere; this file's equivalent logic is untested despite being reachable by every enrichment request."
+  },
+  {
+    "id": "CH-14",
+    "domain": "codehealth",
+    "file": "src/fetch/domainLimit.ts",
+    "line": 19,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "domainLimit.ts (blacklist/failure tracking) has no tests, unlike its sibling robots.ts",
+    "code": "export function isBlacklisted(host: string): boolean {",
+    "why": "The adjacent file in the same directory, src/fetch/robots.ts, has full unit coverage in tests/robots.test.ts including an exported resetForTests() for isolating module-level state between tests. src/fetch/domainLimit.ts follows the identical pattern (module-level Maps/Sets, its own resetForTests() at line 42) but has no corresponding test file — isBlacklisted/recordFailure/recordSuccess/waitForHost, which gate every real fetch in fetcher.ts, are exercised only indirectly if at all."
+  },
+  {
+    "id": "CH-15",
+    "domain": "codehealth",
+    "file": "src/mcp.ts",
+    "line": 55,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "formatEnrichedAsText(), the text an LLM agent actually reads, is untested",
+    "code": "function formatEnrichedAsText(",
+    "why": "This function (lines 55-96) is pure formatting logic — no I/O, straightforward to unit test against a synthetic EnrichedResult[] — and it determines exactly what content reaches an agent through the web_research tool's response. There is no test file for mcp.ts, so a regression here (e.g. a broken fetchTag ternary or a paragraph-joining change) would only be caught by manually inspecting live MCP output."
+  }
+]

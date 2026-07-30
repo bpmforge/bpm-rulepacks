@@ -1,0 +1,156 @@
+[
+  {
+    "id": "SLOP-01",
+    "domain": "slop",
+    "file": "src/fetch/robots.ts",
+    "line": 51,
+    "cwe": [],
+    "severity": "HIGH",
+    "title": "Ternary's true and false branches are identical — the '$' end-anchor is never applied",
+    "code": "  const anchored = rule.endsWith(\"$\") ? `^${escaped}` : `^${escaped}`;",
+    "why": "Both arms of the conditional produce the exact same string, so the check for a trailing '$' (which robots.txt uses to mean end-of-URL anchoring) has no effect on the regex that gets built. Robots.txt rules that rely on '$' anchoring (e.g. 'Disallow: /*.pdf$') will silently match more or fewer paths than intended, which is a correctness bug in the polite-crawling logic this whole library is built around."
+  },
+  {
+    "id": "SLOP-02",
+    "domain": "slop",
+    "file": "src/pullmd-serp.ts",
+    "line": 274,
+    "cwe": [],
+    "severity": "HIGH",
+    "title": "Regex uses Python/Perl-style \\Z end-of-string anchor, which is not special in JavaScript",
+    "code": "  const blockRe = /^\\[\\]\\((https?:\\/\\/[^)]+)\\)\\s*\\n([\\s\\S]*?)(?=^\\[\\]|\\Z)/gm;",
+    "why": "JavaScript regex has no \\Z metacharacter — it is treated as a literal 'Z', not end-of-string. Verified by running this exact regex against a two-block sample: the last Startpage result (the one not followed by another '[]' anchor) is silently dropped because the lookahead can never succeed, so matchAll simply stops before it. Startpage SERP parsing therefore always loses its final result."
+  },
+  {
+    "id": "SLOP-03",
+    "domain": "slop",
+    "file": "src/bpm-pull.ts",
+    "line": 146,
+    "cwe": [],
+    "severity": "HIGH",
+    "title": "Hand-rolled regex HTML parser can't handle nested same-name tags, duplicating jsdom which is already a dependency",
+    "code": "  const re = /<(article|main|section|div)\\b[^>]*>([\\s\\S]*?)<\\/\\1>/gi;",
+    "why": "Verified: given `<div><p>a</p><div><p>REAL...</p></div><p>b</p></div>`, this regex pairs the outer `<div>` open tag with the FIRST `</div>` it meets (the inner div's close), producing a truncated/malformed candidate block and skipping the true outer close entirely. The codebase already depends on jsdom (used in extract/readability.ts and engines/http.ts) which parses HTML correctly; this hand-rolled extractor duplicates that capability with a parser that structurally cannot handle nesting."
+  },
+  {
+    "id": "SLOP-04",
+    "domain": "slop",
+    "file": "src/decoders.ts",
+    "line": 1,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "decoders.ts is entirely dead in production — imported only by its own test file",
+    "code": "export function decodeBingRedirect(href: string): string {",
+    "why": "grep across src/ shows decodeBingRedirect and decodeDdgUddg are never imported by any production module; the only importer is tests/decoders.test.ts. The tests give false confidence that this decode logic is exercised in the running system when it is actually a disconnected module — the real decode logic used at runtime lives duplicated in src/engines/http-configs.ts."
+  },
+  {
+    "id": "SLOP-05",
+    "domain": "slop",
+    "file": "src/engines/http-configs.ts",
+    "line": 6,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "decodeDdg duplicates decodeDdgUddg from decoders.ts verbatim instead of importing it",
+    "code": "function decodeDdg(href: string): string {",
+    "why": "This function's body is byte-for-byte identical to decodeDdgUddg in src/decoders.ts (same try/catch, same URL/searchParams logic). Since http-configs.ts already sits in the same package and decoders.ts exports the identical logic, this should be a single shared function; instead the DDG URL-decoding logic now has two copies that can drift independently."
+  },
+  {
+    "id": "SLOP-06",
+    "domain": "slop",
+    "file": "src/engines/http-configs.ts",
+    "line": 16,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "decodeBing duplicates decodeBingRedirect from decoders.ts verbatim instead of importing it",
+    "code": "function decodeBing(href: string): string {",
+    "why": "This function's body (hostname/path check, base64 slice+pad+decode, https-prefix guard) is identical to decodeBingRedirect in src/decoders.ts. As with decodeDdg, this is the same logic maintained in two places instead of one shared, tested module — a change to the Bing redirect format now needs to be applied twice."
+  },
+  {
+    "id": "SLOP-07",
+    "domain": "slop",
+    "file": "src/mcp.ts",
+    "line": 526,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "normalizeUrl is copy-pasted verbatim across three files instead of being a shared utility",
+    "code": "function normalizeUrl(url: string): string {",
+    "why": "This function is byte-for-byte identical to normalizeUrl in src/pullmd-serp.ts:409-430 (same tracking-param list, same hash strip, same trailing-slash/lowercase handling), and near-identical to normalizeUrl in src/pipeline.ts:66-87. None of the three import from a shared module, so the tracking-parameter denylist and normalization rules can silently diverge between search paths."
+  },
+  {
+    "id": "SLOP-08",
+    "domain": "slop",
+    "file": "src/mcp.ts",
+    "line": 98,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "hostname() is a third copy of the same www-stripping helper",
+    "code": "function hostname(url: string): string {",
+    "why": "Identical in body to hostname() in src/pullmd-serp.ts:82-88 and to hostnameOf() in src/pipeline.ts:166-172 (parse URL, strip leading 'www.', catch-and-return-input-on-error). A fourth near-cousin, hostnameOf() in src/fetch/domainLimit.ts, does the same thing minus the www strip. This should be one exported helper, not four hand-copied variants."
+  },
+  {
+    "id": "SLOP-09",
+    "domain": "slop",
+    "file": "src/mcp.ts",
+    "line": 247,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "Same merge-by-normalized-URL dedup logic duplicated twice in the same file with inconsistent lookup strategy",
+    "code": "        const existing = merged.find((m) => normalizeUrl(m.url) === key);",
+    "why": "The web_search tool handler (here) and serpWithFallback (lines 30-53, earlier in the same file) both implement 'accumulate engines array, keep the longer snippet, dedupe by normalizeUrl' — but this one uses an O(n) Array.find re-normalizing every existing entry on every result, while serpWithFallback uses a Map keyed by the normalized URL. Two implementations of the identical merge rule, one asymptotically worse than the other, sitting in the same file."
+  },
+  {
+    "id": "SLOP-10",
+    "domain": "slop",
+    "file": "src/pipeline.ts",
+    "line": 166,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "pipeline.ts reimplements hostnameOf instead of reusing fetch/domainLimit.ts's exported hostnameOf",
+    "code": "function hostnameOf(url: string): string {",
+    "why": "fetch/domainLimit.ts already exports a hostnameOf(url) used by fetcher.ts for the same purpose; pipeline.ts writes its own local copy (with an added www-strip) rather than extending or importing the existing one. This is the third near-duplicate of the same URL-to-hostname helper in the codebase (see SLOP-08)."
+  },
+  {
+    "id": "SLOP-11",
+    "domain": "slop",
+    "file": "src/fetch/domainLimit.ts",
+    "line": 42,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "resetForTests() is exported but never called anywhere, including its own tests",
+    "code": "export function resetForTests(): void {",
+    "why": "There is no tests/domainLimit.test.ts and no other file imports resetForTests from domainLimit.ts (verified by grep across src/ and tests/). The module-level `last`, `failures`, and `blacklist` maps it exists to reset are never actually reset between test runs, and the function itself is dead exported surface."
+  },
+  {
+    "id": "SLOP-12",
+    "domain": "slop",
+    "file": "src/engines/bing.ts",
+    "line": 84,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "Empty catch swallows the HTTP-path error unconditionally, unlike the same fallback in sibling engines",
+    "code": "    } catch {}",
+    "why": "brave.ts and google.ts both inspect the caught error's message and rethrow immediately when it indicates a challenge/block (so the browser fallback isn't wasted retrying the same wall), but bing.ts's httpSearch failure is discarded unconditionally before falling through to the browser path every time. This is an inconsistent pattern between three otherwise-parallel engine adapters, and it means a Bing verification-challenge error is never surfaced or distinguished from a transient failure."
+  },
+  {
+    "id": "SLOP-13",
+    "domain": "slop",
+    "file": "src/stealth.ts",
+    "line": 102,
+    "cwe": [],
+    "severity": "LOW",
+    "title": "Unused local variable in the injected stealth script",
+    "code": "    const origAttachShadow = Element.prototype.attachShadow;",
+    "why": "origAttachShadow is captured but never read anywhere in the surrounding try block or the rest of the init script — only origCreateElement (declared on the next line) is actually used to patch Document.prototype.createElement. This looks like a half-finished shadow-DOM patch that was abandoned but left in place."
+  },
+  {
+    "id": "SLOP-14",
+    "domain": "slop",
+    "file": "src/cli.ts",
+    "line": 91,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "Help text documents a --debug behavior that the flag does not implement",
+    "code": "      --debug            Keep the browser visible",
+    "why": "SearchOptions.debug is threaded from the CLI through searchAll/search into every engine adapter's opts object, but grep across src/engines/*.ts shows no adapter ever reads opts.debug — visibility of the browser is actually controlled solely by --headless. A user passing --debug expecting to see the browser window gets no such effect; the flag is a no-op and the help text is wrong."
+  }
+]

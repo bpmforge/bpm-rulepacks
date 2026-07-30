@@ -1,0 +1,101 @@
+[
+  {
+    "id": "LOG-01",
+    "domain": "logging",
+    "file": "src/fetch/fetcher.ts",
+    "line": 20,
+    "cwe": ["778"],
+    "severity": "MEDIUM",
+    "title": "Core fetch engine has no logger/event hook, unlike the pipeline layer one level up",
+    "code": "export interface FetchOptions {",
+    "why": "fetchAndExtract() is where retries, robots.txt denial, cache reads, and host-blacklisting all happen, yet FetchOptions carries no onEvent/logger callback comparable to SearchAndFetchOptions.onProgress in pipeline.ts. Every failure mode below (robots.txt fetch errors, corrupt cache entries, silent retries, blacklist engagement) has no observability point to attach to short of patching fetcher.ts itself. An embedding application cannot wire structured logging or tracing into this module at all."
+  },
+  {
+    "id": "LOG-02",
+    "domain": "logging",
+    "file": "src/fetch/robots.ts",
+    "line": 100,
+    "cwe": ["778"],
+    "severity": "HIGH",
+    "title": "robots.txt fetch failure is silently swallowed and defaults to allow-all",
+    "code": "  } catch {}",
+    "why": "When the robots.txt request throws (DNS failure, timeout, TLS error), `rules` stays at its empty-array default, which isAllowed() treats as fully permissive. canFetch() then returns true with no distinction between 'robots.txt was fetched and had no Disallow rules' and 'robots.txt could not be reached at all'. An operator cannot audit whether the polite-fetch guarantee was actually honored for a given host, and a failing robots.txt endpoint quietly turns into unrestricted crawling."
+  },
+  {
+    "id": "LOG-03",
+    "domain": "logging",
+    "file": "src/fetch/domainLimit.ts",
+    "line": 26,
+    "cwe": ["778"],
+    "severity": "MEDIUM",
+    "title": "Host blacklisting — an important state change — engages with no signal",
+    "code": "  if (n >= FAILURE_BLACKLIST_AFTER) blacklist.add(host);",
+    "why": "Once a host accumulates 3 failures it is blacklisted in-process and every subsequent fetch to it short-circuits with skipped:'blacklisted' in fetcher.ts, but the moment the blacklist engages — and why (which 3 failures, what errors) — is never recorded anywhere. An operator only sees the downstream symptom (everything to that host is now skipped) with no way to correlate it back to the triggering failures without already having logged each one separately."
+  },
+  {
+    "id": "LOG-04",
+    "domain": "logging",
+    "file": "src/fetch/cache.ts",
+    "line": 51,
+    "cwe": ["778"],
+    "severity": "MEDIUM",
+    "title": "Corrupt or unreadable cache entries are silently treated as a cache miss",
+    "code": "  } catch {",
+    "why": "If the cached JSON file is truncated, corrupted, or has an unexpected shape, JSON.parse throws and read() returns null exactly as it would for a genuine cache miss — the two cases are indistinguishable to the caller. An operator debugging 'the cache never seems to hit' has no signal that the cache directory contains damaged entries rather than simply being cold."
+  },
+  {
+    "id": "LOG-05",
+    "domain": "logging",
+    "file": "src/pullmd-serp.ts",
+    "line": 41,
+    "cwe": ["778"],
+    "severity": "HIGH",
+    "title": "Primary SERP fast-path failure is fully discarded — total pipeline failure has zero diagnostic signal",
+    "code": "  } catch {",
+    "why": "pullmdReadUrl() is the first thing every quarry search does (pullmdSearch fans it out to 4 engines in serpWithFallback / mcp.ts's web_search_pullmd); on any failure — network error, 5MB-cap trip, non-2xx status — the specific cause is discarded and \"\" is returned, identical to a page that legitimately has no content. If all four engines fail this way, pullmdSearch silently returns an empty array and the caller falls back to the slow Playwright path with no record of why the fast path failed for any of the four engines."
+  },
+  {
+    "id": "LOG-06",
+    "domain": "logging",
+    "file": "src/engines/ddg.ts",
+    "line": 128,
+    "cwe": ["778"],
+    "severity": "MEDIUM",
+    "title": "HTTP fast-path engine failure is swallowed with no log before falling back to Playwright",
+    "code": "    } catch {",
+    "why": "When httpSearch() fails for DDG, the exception (status code, blocked-page reason, parse failure) is dropped entirely and the code silently falls through to a full browser launch. If the HTTP path is failing consistently (e.g. DDG changed its markup), it will look permanently 'healthy' from the outside because every call quietly succeeds via the much slower browser fallback — the same silent-degrade pattern is present verbatim in src/engines/bing.ts line 84 (`} catch {}`)."
+  },
+  {
+    "id": "LOG-07",
+    "domain": "logging",
+    "file": "src/engines/google.ts",
+    "line": 108,
+    "cwe": ["778"],
+    "severity": "MEDIUM",
+    "title": "Caught error is only conditionally surfaced; on the non-matching branch it is discarded with no log",
+    "code": "    } catch (e) {",
+    "why": "The error `e` is captured into `msg` but only ever reaches the caller if it matches /sorry|unusual-traffic|recaptcha/ — any other failure (timeout, DNS error, markup change) is silently dropped and execution falls through to the browser path with no trace of the original error or its stack. If the subsequent browser attempt also fails, the EngineRun.error the caller ultimately sees only reflects the browser failure, permanently losing the real root cause; the identical pattern (catch, conditionally rethrow, otherwise discard) is in src/engines/brave.ts lines 103-110."
+  },
+  {
+    "id": "LOG-08",
+    "domain": "logging",
+    "file": "src/fetch/fetcher.ts",
+    "line": 112,
+    "cwe": ["778"],
+    "severity": "MEDIUM",
+    "title": "5xx retry loop logs nothing per attempt — retries are invisible even on eventual success",
+    "code": "      if (status >= 500 && attempt < retries) {",
+    "why": "Each retry attempt (which host, which status, which attempt number) is recorded nowhere; if attempt 0 returns a 503 and attempt 1 succeeds, the caller's FetchResult looks identical to a clean first-try fetch — nothing in FetchResult records that a retry occurred. An operator cannot tell from the returned data, let alone from logs, whether a target host is flaky and being silently retried into apparent health."
+  },
+  {
+    "id": "LOG-09",
+    "domain": "logging",
+    "file": "src/index.ts",
+    "line": 37,
+    "cwe": ["778"],
+    "severity": "LOW",
+    "title": "No correlation/request id anywhere in the library's data contracts",
+    "code": "export interface EngineRun {",
+    "why": "None of the shared types — EngineRun, SearchResult (types.ts), FetchResult (fetcher.ts), ProgressEvent (pipeline.ts) — carry a query id, request id, or trace id. A host application that logs these objects for multiple concurrent searchAll()/searchAndFetch() calls has no field to group lines from the same logical operation and must invent its own correlation id at the call site for every consumer."
+  }
+]

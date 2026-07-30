@@ -1,0 +1,101 @@
+[
+  {
+    "id": "PERF-01",
+    "domain": "performance",
+    "file": "src/fetch/cache.ts",
+    "line": 48,
+    "cwe": [],
+    "severity": "HIGH",
+    "title": "Synchronous disk read (readFileSync) on every fetchAndExtract call blocks the event loop",
+    "code": "    const entry = JSON.parse(readFileSync(p, \"utf8\")) as CacheEntry;",
+    "why": "read() is called at the top of fetchAndExtract() for every URL (fetcher.ts:61), and fetchAndExtract is run inside pipeline.ts's pool() with concurrency up to N in-flight fetches. Because readFileSync/existsSync are blocking, each cache check stalls the single Node event loop for the whole process, serializing the CPU-bound portion of what is otherwise a concurrent worker pool and adding latency to every other in-flight fetch/extract."
+  },
+  {
+    "id": "PERF-02",
+    "domain": "performance",
+    "file": "src/fetch/cache.ts",
+    "line": 67,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "Synchronous disk write (mkdirSync + writeFileSync) on cache miss blocks the event loop",
+    "code": "  writeFileSync(p, JSON.stringify(full, null, 2), \"utf8\");",
+    "why": "write() runs mkdirSync then writeFileSync synchronously on every cache miss inside fetchAndExtract, which executes concurrently under pipeline.ts's pool(). A blocking write of a full HTML+extract JSON entry (potentially hundreds of KB, pretty-printed) pauses the whole process, delaying progress callbacks and other concurrent fetches that are otherwise just waiting on network I/O."
+  },
+  {
+    "id": "PERF-03",
+    "domain": "performance",
+    "file": "src/fetch/fetcher.ts",
+    "line": 139,
+    "cwe": ["400"],
+    "severity": "HIGH",
+    "title": "Response body read in full with no size cap, unlike bpm-pull.ts's guarded fetch",
+    "code": "      const html = await res.text();",
+    "why": "fetchAndExtract is the primary content-fetch path (used by web_fetch, web_research, and the whole searchAndFetch pipeline) and reads any HTML-typed response fully into memory with res.text(), with no Content-Length check and no streaming byte cap. bpm-pull.ts's get() enforces a 5MB streaming guard for the same kind of fetch, so the omission here means a single large or slow-to-terminate page (especially under concurrent pool() fetches) can spike memory well beyond what the rest of the codebase treats as an acceptable bound."
+  },
+  {
+    "id": "PERF-04",
+    "domain": "performance",
+    "file": "src/engines/http.ts",
+    "line": 67,
+    "cwe": ["400"],
+    "severity": "MEDIUM",
+    "title": "SERP HTML response read in full with no size cap",
+    "code": "  const html = await res.text();",
+    "why": "httpSearch() fetches each engine's result page and buffers the entire body via res.text() with no length guard, then hands it to jsdom for parsing. Search-engine result pages are normally small, but an engine serving an oversized or degenerate response (error page, redirect loop content, bot-challenge page) would be read and parsed in full with no upper bound, unlike the capped streaming fetch in bpm-pull.ts."
+  },
+  {
+    "id": "PERF-05",
+    "domain": "performance",
+    "file": "src/extract/rank.ts",
+    "line": 144,
+    "cwe": ["1050"],
+    "severity": "MEDIUM",
+    "title": "RegExp recompiled inside a nested paragraphs x query-terms loop",
+    "code": "      const re = new RegExp(",
+    "why": "scoreParagraphs() rebuilds a new RegExp for every query term on every paragraph, i.e. O(paragraphs x terms) compilations instead of compiling each term's regex once and reusing it across paragraphs. For a long extracted article (hundreds of paragraphs) scored against a multi-term query, this repeats the same regex-compile work far more often than necessary; a profiler would be needed to size the actual cost, but the structural redundancy is clear from the code."
+  },
+  {
+    "id": "PERF-06",
+    "domain": "performance",
+    "file": "src/fetch/robots.ts",
+    "line": 53,
+    "cwe": ["1050"],
+    "severity": "MEDIUM",
+    "title": "Per-rule RegExp recompiled on every canFetch() call instead of once when robots.txt is parsed",
+    "code": "    return new RegExp(anchored).test(path);",
+    "why": "isAllowed() calls pathMatches() for every disallow/allow rule, and pathMatches() compiles a brand-new RegExp each time — even though the RobotsRules object (and its rule strings) is cached per host for up to an hour. canFetch() runs isAllowed() on every fetch call that respects robots.txt (the default), so every URL checked against an already-cached host re-derives and re-compiles the same set of rule regexes from scratch instead of compiling them once when the rules are parsed/cached."
+  },
+  {
+    "id": "PERF-07",
+    "domain": "performance",
+    "file": "src/mcp.ts",
+    "line": 247,
+    "cwe": ["1050"],
+    "severity": "MEDIUM",
+    "title": "O(n^2) array-scan dedup in the web_search tool instead of the Map-based pattern used elsewhere",
+    "code": "        const existing = merged.find((m) => normalizeUrl(m.url) === key);",
+    "why": "For every incoming result this does a linear Array.find over the already-merged list, re-normalizing every existing item's URL on each comparison, turning dedup into O(n^2) work over all engine results. The same file's serpWithFallback() (mcp.ts:31-51) and pipeline.ts's dedupe() solve the identical problem with a Map keyed by normalized URL in O(n), showing this is an avoidable regression rather than a necessary design."
+  },
+  {
+    "id": "PERF-08",
+    "domain": "performance",
+    "file": "src/bpm-pull.ts",
+    "line": 242,
+    "cwe": [],
+    "severity": "MEDIUM",
+    "title": "pull()/get() has no caching, so identical URLs are re-fetched over the network on every call",
+    "code": "  const { buf, contentType } = await get(url);",
+    "why": "Unlike fetcher.ts's fetchAndExtract, which checks fetch/cache.ts before hitting the network, bpm-pull.ts's pull() (used by pullmdReadUrl and thus pullmdSearch across 4 engines, and by the web_research_pullmd MCP tool) always performs a fresh network fetch. Repeated tool calls with the same or overlapping queries re-fetch the same SERP and candidate-page URLs every time, paying full network latency and per-host pacing delays (paceFor) that a cache layer would avoid."
+  },
+  {
+    "id": "PERF-09",
+    "domain": "performance",
+    "file": "src/fetch/domainLimit.ts",
+    "line": 3,
+    "cwe": ["401"],
+    "severity": "LOW",
+    "title": "Per-host pacing/failure maps grow unbounded for the life of the process",
+    "code": "const last = new Map<string, number>();",
+    "why": "last, failures (line 4), and blacklist (line 5) accumulate one entry per distinct hostname ever fetched and are never evicted (only resetForTests() clears them, which is test-only). In a long-running MCP server process fetching many distinct domains over time, these collections grow monotonically; the per-entry cost is small, but there is no TTL or size bound, so memory grows with the number of unique hosts seen over the process lifetime."
+  }
+]

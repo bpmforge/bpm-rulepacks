@@ -1,0 +1,57 @@
+[
+  {
+    "id": "SEC-01",
+    "domain": "security",
+    "file": "src/fetch/fetcher.ts",
+    "line": 96,
+    "cwe": ["918"],
+    "severity": "HIGH",
+    "title": "SSRF: fetchAndExtract fetches any caller-supplied URL with no private/internal address filtering",
+    "code": "      const res = await fetch(url, {",
+    "why": "The MCP tool `web_fetch` (src/mcp.ts, url: z.string().url()) and `web_research` pass an externally/LLM-supplied URL straight into this fetch with no scheme, hostname, or IP-range validation (no block on localhost, 127.0.0.0/8, 169.254.169.254 cloud metadata, RFC1918 ranges, etc.). robots.txt checks and rate limiting are politeness controls, not security controls, so an agent instructed (directly or via prompt injection in fetched content) to call web_fetch on an internal URL will get the response body reflected back to the caller."
+  },
+  {
+    "id": "SEC-02",
+    "domain": "security",
+    "file": "src/bpm-pull.ts",
+    "line": 43,
+    "cwe": ["918"],
+    "severity": "MEDIUM",
+    "title": "SSRF: zero-dep pull() fetches arbitrary URLs with no internal-address filtering",
+    "code": "  const res = await fetch(url, {",
+    "why": "pull()/get() is reached via pullmdReadUrl() from the web_search_pullmd and web_research_pullmd MCP tools, which fetch every SERP result URL returned by the search engines. There is no check preventing the URL from resolving to a loopback, link-local, or private address, so a poisoned or attacker-controlled search result (or a crafted query that returns one) causes the server to fetch and echo back internal-network content."
+  },
+  {
+    "id": "SEC-03",
+    "domain": "security",
+    "file": "src/fetch/fetcher.ts",
+    "line": 139,
+    "cwe": ["400", "770"],
+    "severity": "MEDIUM",
+    "title": "Uncontrolled response body size in the primary fetch path (no cap, unlike bpm-pull.ts)",
+    "code": "      const html = await res.text();",
+    "why": "Unlike bpm-pull.ts's get(), which enforces a 5MB cap via Content-Length pre-check plus a streaming byte counter, fetchAndExtract() buffers the entire response body with res.text() with no size limit at all. A malicious or misbehaving target (reachable via web_fetch/web_research/CLI --enrich on an arbitrary URL) can return a multi-gigabyte body and exhaust process memory, taking down the whole MCP server/CLI process."
+  },
+  {
+    "id": "SEC-04",
+    "domain": "security",
+    "file": "src/fetch/robots.ts",
+    "line": 50,
+    "cwe": ["1333"],
+    "severity": "HIGH",
+    "title": "ReDoS: robots.txt wildcard rules are compiled into unbounded chained .* regex with no limit on wildcard count",
+    "code": "    .replace(/\\*/g, \".*\");",
+    "why": "Every `*` in a Disallow/Allow rule from a fetched robots.txt (untrusted content served by the very site being crawled) becomes a `.*` in the resulting regex with no limit on how many wildcards a single rule may contain. A robots.txt line such as `Disallow: /*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a!` compiles to a classic catastrophic-backtracking pattern that is then run via new RegExp(...).test(path) at line 53, freezing the single-threaded Node process for any target whose robots.txt is crafted this way — a zero-interaction DoS triggered just by visiting the site."
+  },
+  {
+    "id": "SEC-05",
+    "domain": "security",
+    "file": "src/fetch/robots.ts",
+    "line": 51,
+    "cwe": ["693"],
+    "severity": "MEDIUM",
+    "title": "robots.txt end-of-path ($) anchor is silently never honored — both branches of the ternary are identical",
+    "code": "  const anchored = rule.endsWith(\"$\") ? `^${escaped}` : `^${escaped}`;",
+    "why": "Both arms of the ternary produce the exact same string, so the intended end-anchor behavior for a rule like `Disallow: /secret$` never happens. Worse, the earlier .replace() at line 49 already escapes a literal trailing `$` into `\\$`, so the compiled regex requires the URL path to literally end in a dollar-sign character — meaning exact-match Disallow rules effectively never match and are silently ignored, letting Quarry fetch paths the site explicitly disallowed via `$`-anchored rules. This directly undermines the tool's advertised 'robots.txt respected' guarantee and is untested (tests/robots.test.ts has no case for `$`)."
+  }
+]

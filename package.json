@@ -7,7 +7,7 @@
   "scripts": {
     "test": "node scripts/test-rules.mjs",
     "validate": "node scripts/validate-provenance.mjs",
-    "check": "npm run validate && npm run test && node scripts/score-selftest.mjs",
+    "check": "npm run validate && npm run test && node scripts/score-selftest.mjs && node scripts/verify-selftest.mjs",
     "corpus:fetch": "node corpus/fetch.mjs",
     "score": "node scripts/score-corpus.mjs",
     "gate": "node scripts/gate-corpus.mjs",

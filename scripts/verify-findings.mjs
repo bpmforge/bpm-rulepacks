@@ -54,6 +54,14 @@ const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 // kept, but counted separately, because an inexact quote is a real (small)
 // integrity signal and silently normalising it away would hide it.
 const skel = (s) => String(s ?? '').replace(/[^A-Za-z0-9]/g, '');
+// Accept every shape a reviewer has actually emitted: [79], 79, "CWE-79",
+// "79, 918", null. Returns bare numeric strings, zero-stripped — "079" and 79
+// must land on the same key or the corpus join silently misses (that string bug
+// once made a real 0.103 recall read as 0/78).
+const cweList = (v) =>
+  (Array.isArray(v) ? v : v == null ? [] : String(v).split(/[,\s]+/))
+    .map((c) => String(c).replace(/^CWE-?/i, '').replace(/^0+(?=\d)/, '').trim())
+    .filter((c) => /^\d+$/.test(c));
 const rows = [];
 for (const f of findings) {
   const p = join(repo, f.file || '');
@@ -122,7 +130,12 @@ if (sarifIdx >= 0 && argv[sarifIdx + 1]) {
     ruleId: `LLM-${r.id}`,
     level: /critical|high/i.test(r.severity) ? 'error' : /low/i.test(r.severity) ? 'note' : 'warning',
     message: { text: r.title },
-    properties: { tags: (r.cwe || []).map((c) => `CWE-${String(Number(c))}`), domain: r.domain, severity: r.severity },
+    // `cwe` arrives as an array, a bare number, a "CWE-918" string, or null,
+    // depending on which reviewer produced the file. Normalise rather than
+    // assume: the array assumption used to throw here AFTER the summary table
+    // had already printed, so the run looked successful and silently emitted
+    // no SARIF at all.
+    properties: { tags: cweList(r.cwe).map((c) => `CWE-${c}`), domain: r.domain, severity: r.severity },
     locations: [{ physicalLocation: {
       artifactLocation: { uri: join(repo, r.file) },
       region: { startLine: Number(r.detail.match(/line (\d+)/)?.[1] || r.line) },
