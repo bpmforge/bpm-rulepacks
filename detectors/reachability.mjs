@@ -1,49 +1,51 @@
 #!/usr/bin/env node
-// ⚠ NOT SHIPPABLE YET. DELIBERATELY NOT WIRED INTO score-corpus.mjs.
+// Built-but-unwired detector (ANTI_SLOP R-26) — the defect class ticket-driven
+// agent development produces most, and the one mainstream tools do not name.
 //
-// Measured against the fleet (node detectors/reachability.mjs --sweep), and the
-// numbers are not defensible:
+//   node detectors/reachability.mjs <repo> [--sarif] [--sweep]
 //
-//   shipwright   432 L1 / 130 L0     <- not credible for a repo of that size
-//   lodestone     28 L1 /  17 L0
-//   quarry         9 L1 /  13 L0
-//   repopulse, threatforge, ai-daytrader, kryptkeeper, retroforge
-//                NOT COMPUTED — no entry points found
+// STATUS: credible on small and medium repos, NOT yet on the two largest.
+// Measured 2026-07-29 after entry-point and resolver work:
 //
-// TWO SPECIFIC DEFECTS, both mine, both found by the sweep rather than by
-// reasoning about the code:
+//   lodestone     0 L1 /   0 L0     <- was 26/8
+//   quarry        1 L1 /   0 L0     <- was 8/13, and the 1 is a REAL finding
+//   kryptkeeper   2 L1 /  19 L0
+//   repopulse    10 L1 /   5 L0     <- was 129/26
+//   shipwright  162 L1 /  11 L0     <- was 363/85. Still not reportable.
+//   threatforge 195 L1 / 906 L0     <- still not reportable.
+//   ai-daytrader, retroforge        NOT COMPUTED (no discoverable entry point)
 //
-//   1. ENTRY-POINT SEEDING IS TOO NARROW. It reads package.json
-//      main/module/bin/exports from the ROOT only. A monorepo declares entries
-//      per workspace, and a server app often declares none at all — its real
-//      entry is a bootstrap file no manifest names. Five of eight repos have no
-//      discoverable entry, so reachability is undefined for them, and
-//      shipwright's 432 is the same defect failing loudly instead of quietly:
-//      most of its tree is unreachable from the root manifest by construction.
+// VALIDATION: quarry’s single L1 finding is src/decoders.ts, "only referenced
+// by tests/decoders.test.ts". An independent LLM review of quarry reported
+// exactly that — "decoders.ts is entirely dead in production, imported only by
+// its own test file" — so the detector reproduced a real finding unaided.
+// Shipwright’s known true positives (registerExportRoutes,
+// registerDecisionRoutes, mintValidatorRunReceipt) are correctly ABSENT: they
+// were wired in during W9.
 //
-//   2. FRAMEWORK REGISTRATION IS NOT AN IMPORT EDGE. `registerExportRoutes` and
-//      `registerDecisionRoutes` appear in the L1 list, and those are REAL
-//      instances — both are named in the design note as genuine built-but-
-//      unwired finds. But a route registered via a plugin table or a glob
-//      import has no static edge to follow, so this detector cannot yet tell
-//      those true positives apart from the hundreds of false ones around them.
+// THREE BUGS FIXED, each found by measuring rather than reasoning:
 //
-// The first version of this file was worse in a more interesting way: it asked
-// "is this symbol referenced OUTSIDE its own file?" rather than "is it reachable
-// from an entry point?" — so every helper exported for testability read as
-// unwired. `isWithinQuietHours` was flagged while living in a module three
-// production files import. Fixed by computing a real transitive closure; the
-// remaining problem is that the closure is seeded wrong.
+//   1. Entry-point seeding read only the ROOT package.json. Now: every
+//      manifest in the tree, runner paths parsed out of "scripts",
+//      conventional bootstraps that actually exist, and framework route-file
+//      conventions. 184 entries on shipwright where there had been a handful.
 //
-// It is committed rather than discarded because the sweep harness, the
-// entry-point discipline (NOT COMPUTED, never a false clean) and the L0/L1
-// distinction are all sound and worth building on. What it needs is proper
-// entry-point discovery — per-workspace manifests, bootstrap-file heuristics,
-// and framework route/plugin registration as graph edges. That is Lodestone's
-// symbol graph, which already carries `defs`/`refs`/`calls`/`imports`, rather
-// than the file-level approximation here.
+//   2. Workspace-package specifiers were invisible edges. shipwright’s server
+//      reaches packages/ exclusively via @shipwright/* names — 320+ of them —
+//      and the resolver understood only ./relative paths, so every package
+//      looked unreachable from every app.
 //
-// DO NOT wire this into the scorer or quote its numbers until that lands.
+//   3. THE BIG ONE, one line: NodeNext TypeScript writes a .js specifier for
+//      a file that is .ts. shipwright uses that style for 509 of 509 relative
+//      imports and ZERO extensionless ones, so essentially every edge failed
+//      to resolve and 68% of the repo read as unreachable. The extension in a
+//      specifier is the OUTPUT name, not the source name. 363 -> 162.
+//
+// STILL WRONG on shipwright/threatforge, and the likely cause is the same
+// shape as (2): edges that are not static imports at all — plugin tables,
+// glob registration, DI containers. Those need Lodestone’s symbol graph rather
+// than this file-level approximation. NOT wired into score-corpus.mjs until
+// the two large repos are credible.
 //
 // ── original design notes ───────────────────────────────────────────────────
 //
