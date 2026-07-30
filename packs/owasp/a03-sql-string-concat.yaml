@@ -50,8 +50,6 @@ rules:
               # node-sqlite3 / better-sqlite3. The original rule knew only
               # query() and execute(), so EVERY sqlite3 application was
               # invisible to it — the gap that let SampleCo's D2 through.
-              - pattern: $DB.all($SINK, ...)
-              - pattern: $DB.each($SINK, ...)
               - pattern: $DB.exec($SINK)
               - pattern: $DB.prepare($SINK)
           - focus-metavariable: $SINK
@@ -64,6 +62,8 @@ rules:
           - pattern-either:
               - pattern: $DB.get($SINK, ...)
               - pattern: $DB.run($SINK, ...)
+              - pattern: $DB.all($SINK, ...)
+              - pattern: $DB.each($SINK, ...)
           - metavariable-regex:
               metavariable: $DB
               # The db-ish token must be an IDENTIFIER COMPONENT, not any
@@ -76,7 +76,27 @@ rules:
               # matching has no notion of where an identifier component starts.
               # Anchored to start-of-string, a non-letter separator, or a
               # camelCase hump.
-              regex: '(^|[^a-zA-Z])(db|conn|tx|pool|client|knex|database|sqlite|sequelize)|[a-z0-9](Db|DB|Conn|Tx|Pool|Client|Knex|Database|Sqlite|Sequelize)'
+              # Two jobs. (1) the receiver must look like a DB handle, and the
+              # token must be an identifier COMPONENT — the first version was
+              # `.*(db|...|tx|Tx|...).*`, which matches the `tx` inside `ctx`, so
+              # `ctx.request.get(url)` in a web-search library was reported as
+              # SQL injection.
+              # (2) the receiver must NOT be a prepared statement. better-sqlite3
+              # inverts the node-sqlite3 convention: `db.all(sql, params)` takes
+              # SQL first, but `db.prepare(sql).all(params)` passes BIND VALUES.
+              # Without the lookahead this rule flagged lodestone's
+              #   .prepare("... WHERE file_path LIKE ?").all(`%${pathFilter}%`)
+              # — correctly PARAMETERIZED code with a `?` placeholder — as
+              # injection. Reporting the secure pattern as the vulnerability is
+              # the worst false positive a security rule can produce.
+              # A `pattern-not` in this position is INERT under opengrep 1.25.0,
+              # the same way `pattern-regex` is inside a taint source; a
+              # metavariable-regex lookahead works.
+              # [\s\S] not . — the receiver of a chained call spans MULTIPLE
+              # LINES (`db\n  .prepare(\n    "SELECT ..."\n  )\n  .all(...)`), and
+              # `.` does not match a newline, so `^(?!.*\.prepare)` succeeded on
+              # every one of them and excluded nothing.
+              regex: '^(?![\s\S]*\.prepare)(?:[\s\S]*(?:(^|[^a-zA-Z])(db|conn|tx|pool|client|knex|database|sqlite|sequelize)|[a-z0-9](Db|DB|Conn|Tx|Pool|Client|Knex|Database|Sqlite|Sequelize)))'
           - focus-metavariable: $SINK
     metadata:
       license: proprietary
