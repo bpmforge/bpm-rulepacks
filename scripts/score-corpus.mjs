@@ -114,7 +114,7 @@ if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
 //
 // Runs OFFLINE (no --refresh): lookups come from the committed registry cache,
 // so this stays hermetic and the pre-push gate never depends on the network.
-for (const detName of ['manifest.mjs', 'duplication.mjs']) {
+for (const detName of ['manifest.mjs', 'lodestone.mjs']) {
 const manifestDetector = join(ROOT, 'detectors', detName);
 if (existsSync(manifestDetector)) {
   try {

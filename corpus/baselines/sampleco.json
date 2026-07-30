@@ -1,11 +1,11 @@
 {
-  "tp": 12,
+  "tp": 13,
   "fp": 0,
-  "fn": 6,
+  "fn": 5,
   "precision": null,
-  "recall": 0.625,
+  "recall": 0.6875,
   "f1": null,
-  "covered": 10,
+  "covered": 11,
   "total": 16,
   "perRule": {
     "packs.secrets.bpm-secret-generic-assignment": {
@@ -43,6 +43,16 @@
     "detectors.MANIFEST-PHANTOM-IMPORT": {
       "tp": 1,
       "fp": 0
+    },
+    "detectors.LODE-DEAD-CODE": {
+      "tp": 1,
+      "fp": 0,
+      "crossTaxonomy": 2
+    },
+    "detectors.LODE-SINGLE-USE-HELPER": {
+      "tp": 0,
+      "fp": 0,
+      "crossTaxonomy": 1
     }
   },
   "missed": [
@@ -85,16 +95,6 @@
       "kind": "vuln",
       "defect": "D7",
       "note": "dead primary path behind permissive fallback"
-    },
-    {
-      "file": "src/utils/validate.js",
-      "line": 3,
-      "cwe": [
-        "561"
-      ],
-      "kind": "vuln",
-      "defect": "D8",
-      "note": "validateInvoice defined+exported, never called"
     },
     {
       "file": "src/routes/authRoutes.js",

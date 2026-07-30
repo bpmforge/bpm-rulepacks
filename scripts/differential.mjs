@@ -97,7 +97,7 @@ if (existsSync(join(ROOT, 'astgrep'))) {
   catch (e) { try { take(e.stdout); } catch { console.error('ast-grep pass failed'); } }
 }
 
-for (const det of ['manifest.mjs', 'duplication.mjs']) {
+for (const det of ['manifest.mjs', 'lodestone.mjs']) {
   const p = join(ROOT, 'detectors', det);
   if (!existsSync(p)) continue;
   try { collect(JSON.parse(execFileSync('node', [p, repo, '--sarif'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })), cpu); } catch { /* detector n/a */ }
