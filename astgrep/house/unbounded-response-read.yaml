@@ -18,6 +18,23 @@ rule:
     # fetched HTML via .text(), lodestone SEC-05 reads a file. Keeping them
     # would have drowned the real class 3:1.
     - regex: "\\.(text|arrayBuffer|blob)\\(\\)$"
+    # INBOUND request bodies are a real unbounded-read risk but a DIFFERENT one:
+    # the client picks the size, the fix is a body-size limit at the framework or
+    # proxy, and the message below ("a network response body") is simply false
+    # about them. 12 of 51 fleet hits were `await req.text()` in Next.js route
+    # handlers. Filed separately rather than described wrongly here.
+    - not: { regex: "\\b(req|request)\\.(text|arrayBuffer|blob)\\(\\)$" }
+    # The browser File API. The user picked the file off their own disk; no
+    # remote endpoint decides the size, so the CWE-400 framing does not apply.
+    - not: { regex: "\\b(file|dataOrOptions|sourceOrFile)\\.(text|arrayBuffer|blob)\\(\\)$" }
+    # Reading a FAILED response to put in an error message. Technically unbounded,
+    # but it is a universal idiom on the error path of a configured endpoint, and
+    # at 13 of 51 hits it drowns the class this rule exists to find — the same
+    # reason `.json()` was excluded when this rule shipped.
+    - not:
+        inside:
+          kind: variable_declarator
+          has: { field: name, regex: "(?i)error" }
     # The guard may be a content-length check, a named cap, or any limit
     # constant — the rule asks only whether the enclosing function shows SOME
     # awareness of size. A function that mentions none is the finding. This is
@@ -56,8 +73,33 @@ metadata:
   # site disagrees. That shape (sibling does it correctly) has now produced
   # three of the strongest rules in this pack.
   #
-  # VOLUME, measured: threatforge 68 | shipwright 8 | quarry 4 | lodestone 2 |
-  # repopulse 1 | kryptkeeper 0. Was 316 on threatforge before .json() was
-  # excluded. Still the noisiest security rule in the pack and confidence stays
-  # medium: it asks only whether the enclosing FUNCTION mentions a size guard,
-  # so a cap applied one call up the stack reads as absent.
+  # GRADED THE DAY AFTER IT SHIPPED, and it should not have shipped as written.
+  #
+  # It went out at 51 fleet hits with the note "still the noisiest security rule
+  # in the pack". Classifying all 51 — not sampling — showed 31 of them were not
+  # the class this rule describes at all:
+  #
+  #   INBOUND request body   await req.text() in a route handler       12
+  #   local File API         await file.text() from a file picker       6
+  #   error-path read        const error = await response.text()       13
+  #   ------------------------------------------------------------------
+  #   targeted class         outbound response, no size guard          20
+  #
+  # The first family is a correctness bug, not noise: the message says "a network
+  # response body" and these are REQUEST bodies. It told ThreatForge that reading
+  # its own API's inbound payload was an unbounded response read. Unbounded
+  # inbound bodies ARE a real defect — client-controlled size, fixed with a body
+  # limit at the framework or proxy — and they deserve their own rule with their
+  # own message. NOT YET BUILT; do not widen this rule to cover them.
+  #
+  # After: 20 fleet hits, all in the targeted class. Volume was never the
+  # problem — the rule was answering three different questions at once, and the
+  # ".json() drowns it 3:1" narrowing done before shipping fixed the volume while
+  # leaving the conflation untouched.
+  #
+  # Confidence stays medium: the guard check asks only whether the enclosing
+  # FUNCTION mentions a size limit, so a cap applied one call up the stack still
+  # reads as absent. The remaining 20 are also not all equal — quarry's four
+  # fetch arbitrary web pages (the motivating class), while several others read
+  # a configured first-party backend, where a hostile body implies a larger
+  # compromise. Ranking within the 20 is not yet mechanized.
