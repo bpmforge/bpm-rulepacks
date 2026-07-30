@@ -8,6 +8,22 @@ message: >
   async function was written to provide. In a worker pool it means the pool
   width buys nothing: the workers queue behind one blocking read. Use the
   promise API (`fs/promises`) and await it.
+# The defect is blocking an event loop that is SERVING something. A one-shot
+# build script, code generator or benchmark has no concurrent work to stall —
+# `readFileSync` there is not merely acceptable, it is the simpler correct
+# choice. 9 of 12 fleet hits were exactly that: threatforge's contracts/
+# generator (shebang `#!/usr/bin/env npx ts-node`), server/scripts/parity-run,
+# bench-fanout, and the screenshot tool.
+#
+# Scoped to THIS rule rather than to scan.mjs's report-level filter, because the
+# exemption is not general: a hardcoded credential or an injection sink in a
+# build script is still a finding. Only "blocks the event loop" stops applying.
+ignores:
+  - "**/scripts/**"
+  - "**/contracts/**"
+  - "**/*-demo.ts"
+  - "**/*-screenshots.ts"
+  - "**/bench-*.ts"
 rule:
   # Matched at the CALL SITE, not the function. An earlier draft patterned the
   # enclosing function as `async function $F($$$P) { $$$B }` and matched
@@ -50,3 +66,19 @@ metadata:
   # and needs no interprocedural reasoning. confidence: medium because a sync
   # call in an async function is occasionally deliberate — startup config
   # loading, CLI paths — and the rule cannot tell hot from cold.
+  #
+  # GRADED on all 12 fleet hits. 9 were one-shot build/CLI tooling where there is
+  # no event loop serving anything — threatforge's contracts/generate.ts carries
+  # a `#!/usr/bin/env npx ts-node` shebang, and parity-run / bench-fanout /
+  # ftm-screenshots are the same shape. Excluded by path (see `ignores` above),
+  # scoped to this rule because the exemption is specific to "blocks the event
+  # loop" and does not extend to credentials or injection in the same files.
+  #
+  # 12 -> 3, and the 3 are the ones worth waking up for:
+  #   threatforge vertexai.ts x2  execSync("gcloud auth application-default
+  #                               print-access-token") inside an async provider
+  #                               method — shells out to gcloud and blocks the
+  #                               whole server for the duration
+  #   quarry browser.ts           mkdirSync in library code
+  #
+  # Precision 0.25 -> 1.00.
