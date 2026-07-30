@@ -167,13 +167,36 @@ This matters more than it sounds. On the Quarry round the headline moved
 7.7% → 42.3%, but two of the three jumps were measurement bugs in the harness.
 The honest attribution:
 
+The Quarry round produced FOUR different catch-rate numbers before one of them
+was trustworthy. Every one of the wrong ones was a defect in our own harness:
+
+| Reported | Why it was wrong |
+|---|---|
+| 7.7% | point-proximity matching; ast-grep pass missing entirely |
+| 23.1% | ast-grep pass still missing — half the tier invisible |
+| 42.3% | **inflated** — one CPU finding claimed several LLM findings on its line |
+| 17.3% | **deflated** — domain equality vetoed correct matches |
+| **36.5%** | one-to-one assignment, taxonomy used to ORDER not veto |
+
+And the honest attribution, measured by removing the new pack and detector and
+re-running the corrected harness:
+
 | | catch-rate |
 |---|---|
-| as first reported (broken matcher, ast-grep pass missing) | 7.7% |
-| **corrected harness, no new rules** — the true "before" | **21.2%** |
-| **corrected harness + 5 derived rules** | **42.3%** |
+| **before** — 5 rules + clone detector absent | **13.5%** (7/52) |
+| **after** — present | **36.5%** (19/52) |
 
-The five rules doubled real coverage. The rest was us mis-measuring ourselves.
+Round 1 nearly tripled real coverage. Two lessons, both expensive:
+
+**Taxonomy is not a partition, so it cannot be a veto.** An empty catch is
+simultaneously a slop defect and a logging defect. Our rule lives in the slop
+pack; the reviewer filed it under logging; both are right. Use taxonomy to
+decide *which rule gets the credit*, never to reject a match.
+
+**One detection covers one finding.** Without one-to-one assignment, a rule can
+take credit for a defect it knows nothing about — and then a correct new
+detector appears to add nothing, which is exactly what happened when the clone
+detector was wired in.
 
 ---
 
