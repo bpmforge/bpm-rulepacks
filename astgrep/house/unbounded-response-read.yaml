@@ -1,0 +1,63 @@
+id: bpm-house-unbounded-response-read
+language: ts
+severity: warning
+message: >
+  A network response body is read whole into memory with no size guard anywhere
+  in the enclosing function. `.text()`, `.arrayBuffer()` and `.blob()`
+  buffer the entire response — a hostile or merely large endpoint decides how
+  much memory this process allocates, and the process dies before any of your
+  own limits apply (CWE-400 / CWE-770). Check `content-length` against a cap
+  before reading, or stream `res.body` and count bytes as they arrive.
+rule:
+  all:
+    - pattern: "await $RES.$METHOD()"
+    # .json() and .formData() are DELIBERATELY excluded. They were 220 of 316
+    # hits on threatforge — overwhelmingly API clients reading their own
+    # backend, where the response is not attacker-sized and the parser bounds
+    # the shape. Neither motivating finding was JSON: quarry SEC-03 buffers
+    # fetched HTML via .text(), lodestone SEC-05 reads a file. Keeping them
+    # would have drowned the real class 3:1.
+    - regex: "\\.(text|arrayBuffer|blob)\\(\\)$"
+    # The guard may be a content-length check, a named cap, or any limit
+    # constant — the rule asks only whether the enclosing function shows SOME
+    # awareness of size. A function that mentions none is the finding. This is
+    # deliberately generous: a false negative (some idiosyncratic guard we do
+    # not recognise) is much cheaper than telling someone their capped fetch is
+    # unbounded.
+    - inside:
+        any:
+          - { kind: function_declaration }
+          - { kind: arrow_function }
+          - { kind: method_definition }
+          - { kind: function_expression }
+        stopBy: end
+        not:
+          has:
+            regex: "content-length|contentLength|MAX_BYTES|maxBytes|maxSize|sizeLimit|byteLimit|maxLength|truncat|\\blimit\\b"
+            stopBy: end
+metadata:
+  license: proprietary
+  provenance: "derived:quarry/SEC-03,lodestone/SEC-05"
+  cwe: [400, 770]
+  confidence: medium
+  concept: input_validation
+  domain: security
+  since: "0.2.0"
+  # The largest security cluster across three rounds of LLM review — quarry
+  # SEC-03 (fetcher.ts reads the whole HTML body) and lodestone SEC-05 (no cap
+  # before reading a matched file into memory).
+  #
+  # BOTH FINDINGS CAME WITH THEIR OWN ORACLE, which is why this was the first
+  # security rule worth building: each repo already contains the correct version
+  # of the same operation. quarry's bpm-pull.ts declares
+  #   export const MAX_BYTES = 5 * 1024 * 1024;
+  # and checks content-length against it before reading — while fetcher.ts, the
+  # primary path, does not. The codebase already knows the right answer and one
+  # site disagrees. That shape (sibling does it correctly) has now produced
+  # three of the strongest rules in this pack.
+  #
+  # VOLUME, measured: threatforge 68 | shipwright 8 | quarry 4 | lodestone 2 |
+  # repopulse 1 | kryptkeeper 0. Was 316 on threatforge before .json() was
+  # excluded. Still the noisiest security rule in the pack and confidence stays
+  # medium: it asks only whether the enclosing FUNCTION mentions a size guard,
+  # so a cap applied one call up the stack reads as absent.
