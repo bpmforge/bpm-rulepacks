@@ -1,7 +1,25 @@
-# Token cost, measured — the CPU tier does not cut LLM tokens
+# Token cost, measured — suppressing findings saves nothing; bounding input does
 
 **2026-07-30.** The CPU-first program has been justified by an estimated
-"70–90% LLM token cut". That number is wrong, and this is the measurement.
+"70–90% LLM token cut". The estimate is unsupported — but the correction is more
+specific than "there is no saving", and an earlier version of this document got
+that wrong.
+
+**There are two different mechanisms and they must not be conflated.**
+
+| Mechanism | What it changes | Measured |
+|---|---|---|
+| **Suppressing findings** — tell the reviewer what the CPU already found | the OUTPUT it writes | **−0.4%. Nothing.** (below) |
+| **Bounding input** — send a ranked evidence packet instead of the whole file | the INPUT it reads | **65.4% combined / 70.1% Tier-2**, and NEGATIVE on tiny files (CodeReckon, `docs/METHODOLOGY.md`) |
+
+The saving is real and it lives entirely in the second row. CodeReckon already
+built and measured it — `tools/tier2-triage`, `tools/tier3-synthesis`, with a
+parity suite proving the packet-side prompt mirrors are byte-identical to
+production. An earlier draft of this file called that lever "untested", which was
+simply false: it had been measured before I measured anything.
+
+What this document adds is the other row, which had not been measured: a CPU tier
+that only removes findings from the LLM's job saves nothing at all.
 
 ---
 
@@ -82,8 +100,21 @@ can falsify it. The defensible claims are:
 - CPU-first gives continuous coverage between audits at zero marginal cost.
 - CPU-first shifts LLM spend from enumeration to judgment.
 
-**If a token cut is genuinely needed**, the lever is comprehension cost, not
-finding count — feed the reviewer a *smaller, ranked slice of the codebase*
-instead of the whole tree. That is what Lodestone's evidence packets and
-retrieval are for, and it is a different program from rule authoring. It is also
-untested, and it should not be claimed until it is measured the way this was.
+**The lever that works is already built.** CodeReckon's packet architecture is
+the comprehension-cost lever, and its measured numbers are the ones to quote:
+65.4% combined, 70.1% Tier-2 alone, and negative on files small enough that a
+bounded excerpt IS the whole file. `target_met: false` against the program's own
+≥70% bar, reported honestly there rather than reweighted to clear it.
+
+**So the two programs do different jobs and should be sold differently:**
+
+- **bpm-rulepacks (rules + detectors)** raises what an audit FINDS at constant
+  LLM cost, and covers repos between audits at zero marginal cost. It is not a
+  token-reduction story and should stop being described as one.
+- **CodeReckon (evidence packets)** is the token-reduction story, at a measured
+  65.4%, and it does not depend on the rulepack finding anything at all.
+
+The one thing genuinely untested: whether the two compound. Packets bound what
+the reviewer reads; the rulepack changes what it is asked about. Nothing measured
+so far says the product of the two is better than the packet number alone, and it
+should not be assumed.
