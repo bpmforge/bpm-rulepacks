@@ -97,7 +97,7 @@ if (existsSync(join(ROOT, 'astgrep'))) {
   catch (e) { try { take(e.stdout); } catch { console.error('ast-grep pass failed'); } }
 }
 
-for (const det of ['manifest.mjs']) {
+for (const det of ['manifest.mjs', 'duplication.mjs']) {
   const p = join(ROOT, 'detectors', det);
   if (!existsSync(p)) continue;
   try { collect(JSON.parse(execFileSync('node', [p, repo, '--sarif'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })), cpu); } catch { /* detector n/a */ }
@@ -190,13 +190,21 @@ function collect(sarif, into) {
   for (const run of sarif.runs || []) {
     const meta = Object.fromEntries((run.tool?.driver?.rules || []).map((r) => [r.id, r]));
     for (const res of run.results || []) {
-      const loc = res.locations?.[0]?.physicalLocation;
-      into.push({
-        ruleId: res.ruleId, file: rel(loc?.artifactLocation?.uri || ''),
-        line: loc?.region?.startLine ?? null,
-        endLine: loc?.region?.endLine ?? loc?.region?.startLine ?? null,
-        cwe: cweOf(res, meta[res.ruleId]), message: res.message?.text || '',
-      });
+      // EVERY location, not just the first. A clone group is one finding with N
+      // locations — one per copy — and reading only locations[0] made every
+      // copy after the first invisible. The duplication detector reported
+      // normalizeUrl at pullmd-serp.ts:409 AND mcp.ts:526; the LLM cited
+      // mcp.ts:526, which is location[1], so the match was silently missed and
+      // the catch-rate did not move when the detector was wired in.
+      for (const l of (res.locations?.length ? res.locations : [undefined])) {
+        const loc = l?.physicalLocation;
+        into.push({
+          ruleId: res.ruleId, file: rel(loc?.artifactLocation?.uri || ''),
+          line: loc?.region?.startLine ?? null,
+          endLine: loc?.region?.endLine ?? loc?.region?.startLine ?? null,
+          cwe: cweOf(res, meta[res.ruleId]), message: res.message?.text || '',
+        });
+      }
     }
   }
 }

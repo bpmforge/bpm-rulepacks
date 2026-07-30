@@ -114,7 +114,8 @@ if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
 //
 // Runs OFFLINE (no --refresh): lookups come from the committed registry cache,
 // so this stays hermetic and the pre-push gate never depends on the network.
-const manifestDetector = join(ROOT, 'detectors', 'manifest.mjs');
+for (const detName of ['manifest.mjs', 'duplication.mjs']) {
+const manifestDetector = join(ROOT, 'detectors', detName);
 if (existsSync(manifestDetector)) {
   try {
     const out = execFileSync('node', [manifestDetector, corpusPath, '--sarif'],
@@ -127,7 +128,8 @@ if (existsSync(manifestDetector)) {
           cwe: extractCwe(res, meta[res.ruleId]), ruleId: `detectors.${res.ruleId}` });
       }
     }
-  } catch (e) { console.error(`manifest detector failed: ${String(e.message).split('\n')[0]}`); }
+  } catch (e) { console.error(`${detName} failed: ${String(e.message).split('\n')[0]}`); }
+}
 }
 
 // 3. Load normalized labels: [{file, line?, cwe, kind:"vuln"|"safe"}]
