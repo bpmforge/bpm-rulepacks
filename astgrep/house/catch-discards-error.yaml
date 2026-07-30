@@ -44,4 +44,5 @@ metadata:
   # block performs I/O and whether the handler substitutes a value the caller
   # then branches on. That is a scoring change, not a pattern change.
   concept: logging_audit
+  domain: logging
   since: "0.2.0"

@@ -19,4 +19,5 @@ rules:
       cwe: [1041]
       confidence: high
       concept: code_quality
+      domain: slop
       since: "0.2.0"

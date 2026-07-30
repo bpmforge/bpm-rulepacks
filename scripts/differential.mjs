@@ -143,11 +143,74 @@ const overlaps = (c, llmLine) => {
 };
 const cweOverlap = (a, b) => a.length && b.length && a.some((x) => b.includes(x));
 
-const both = [], llmOnly = [];
-for (const l of llmLoc) {
-  const hit = cpu.find((c) => same(c.file, l.file) && overlaps(c, l.line) && (!l.cwe.length || !c.cwe.length || cweOverlap(c.cwe, l.cwe)));
-  (hit ? both : llmOnly).push({ ...l, cpuRule: hit?.ruleId });
+
+// ── domain attribution ──────────────────────────────────────────────────────
+// A match needs the right RULE to get the credit, not just the right line.
+// Before this, one CPU finding could claim any LLM finding sharing its line:
+// bpm-house-catch-discards-error (a LOGGING rule) claimed quarry's DUPLICATION
+// findings at mcp.ts:526 and mcp.ts:98, because those URL helpers happen to
+// wrap their bodies in a bindingless catch. The aggregate count looked fine and
+// the attribution was wrong — which is why wiring in a correct clone detector
+// moved the number by zero. "Duplicated three times" and "discards its error"
+// are different defects and must not collapse.
+//
+// Domain comes from the rule's own `domain:` metadata where it has one, else
+// from its pack. The LLM side already carries `domain` from the review contract.
+const RULE_DOMAIN = {};
+for (const dir of ['packs', 'astgrep']) {
+  const walk = (d) => { for (const e of readdirSync(d, { withFileTypes: true })) {
+    const q = join(d, e.name);
+    if (e.isDirectory()) walk(q);
+    else if (/\.ya?ml$/.test(e.name)) {
+      const txt = readFileSync(q, 'utf8');
+      const id = txt.match(/^\s*-?\s*id:\s*(\S+)/m)?.[1];
+      const dom = txt.match(/^\s+domain:\s*(\S+)/m)?.[1];
+      if (id && dom) RULE_DOMAIN[id] = dom;
+    } } };
+  try { walk(join(ROOT, dir)); } catch { /* absent */ }
 }
+const PACK_DOMAIN = { owasp: 'security', secrets: 'security', framework: 'security', slop: 'slop', house: null };
+function domainOf(ruleId) {
+  const bare = String(ruleId).split('.').pop();
+  if (RULE_DOMAIN[bare]) return RULE_DOMAIN[bare];
+  if (/^DUP-/.test(ruleId)) return 'slop';
+  if (/^MANIFEST-/.test(ruleId)) return 'security';
+  if (/^REACH-/.test(ruleId)) return 'slop';
+  const pack = String(ruleId).split('.')[1];
+  return PACK_DOMAIN[pack] ?? null;
+}
+
+// ONE-TO-ONE assignment. Each CPU finding may cover at most ONE LLM finding.
+//
+// This is the fix for the collapse, and it is better than gating on taxonomy
+// equality — which was tried and was too strict. An empty catch is
+// SIMULTANEOUSLY a slop defect and a logging defect: our rule lives in the slop
+// pack, the reviewer filed it under logging, and both are right. Requiring
+// domain equality dropped the quarry catch-rate from 42.3% to 17.3% by refusing
+// correct matches.
+//
+// What was actually wrong was double-credit: bpm-house-catch-discards-error at
+// mcp.ts:526 claimed BOTH the logging finding and the duplication finding on
+// that line, so adding a correct clone detector moved the number by zero. One
+// detection covers one finding. Taxonomy agreement is used to ORDER the
+// candidates — the right rule gets the credit first — not to veto a match.
+const both = [], llmOnly = [];
+const claimed = new Set();
+const score = (c, l) => {
+  if (l.cwe.length && c.cwe.length && cweOverlap(c.cwe, l.cwe)) return 2;   // best: CWE agreement
+  const cd = domainOf(c.ruleId);
+  if (cd && l.domain && cd === l.domain) return 1;                          // next: same domain
+  return 0;                                                                 // last: location only
+};
+for (const l of llmLoc) {
+  const cands = cpu
+    .filter((c) => !claimed.has(c) && same(c.file, l.file) && overlaps(c, l.line))
+    .sort((a, b) => score(b, l) - score(a, l));
+  const hit = cands[0];
+  if (hit) { claimed.add(hit); both.push({ ...l, cpuRule: hit.ruleId, how: score(hit, l) }); }
+  else llmOnly.push(l);
+}
+
 const cpuOnly = cpu.filter((c) => !llmLoc.some((l) => same(c.file, l.file) && overlaps(c, l.line)));
 
 const catchRate = llmLoc.length ? both.length / llmLoc.length : null;
@@ -203,6 +266,7 @@ function collect(sarif, into) {
           line: loc?.region?.startLine ?? null,
           endLine: loc?.region?.endLine ?? loc?.region?.startLine ?? null,
           cwe: cweOf(res, meta[res.ruleId]), message: res.message?.text || '',
+          domain: res.properties?.domain ?? null,
         });
       }
     }

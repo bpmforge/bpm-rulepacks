@@ -24,6 +24,7 @@ metadata:
   cwe: [1050]
   confidence: high
   concept: code_quality
+  domain: performance
   since: "0.2.0"
   # From an LLM performance review of quarry:
   #   src/extract/rank.ts:144 — a RegExp per query-term, inside a loop that is

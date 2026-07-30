@@ -32,6 +32,7 @@ metadata:
   cwe: [1050]
   confidence: medium
   concept: code_quality
+  domain: performance
   since: "0.2.0"
   # From an LLM performance review of quarry (src/fetch/cache.ts:67):
   # mkdirSync + writeFileSync on the cache-write path, which sits directly in
