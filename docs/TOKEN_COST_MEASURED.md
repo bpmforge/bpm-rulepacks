@@ -108,11 +108,18 @@ the model that produced the findings.
 Arm C: a single invocation carrying all five lenses, same repo, same output
 contract, same verbatim-quote requirement.
 
-| | tokens | findings | tokens/finding |
-|---|---|---|---|
-| five separate reviewers | 619,560 | 52 | 11,915 |
-| **one reviewer, five lenses** | **141,066** | **37** | **3,813** |
-| | **−77.2%** | −29% | **3.1× more efficient** |
+| | tokens | findings |
+|---|---|---|
+| five separate reviewers | 619,560 | 52 |
+| **one reviewer, five lenses** | **141,066** | 37 |
+| | **−77.2%** | −29% |
+
+**Deliberately not computed: tokens-per-finding.** That ratio divides a hard
+measurement by a sampled one — §6 shows finding counts are draws from an unknown
+population, not measurements of a fixed quantity. Had Arm C drawn 52 instead of
+37 the ratio would read 4.4× with no change in what it actually found. Quote the
+three facts instead: **77.2% fewer tokens, 40% of the baseline reproduced, 16
+findings the baseline missed.**
 
 37/37 findings passed the verbatim-quote check. Zero hallucinations.
 
@@ -200,9 +207,10 @@ as agreement, never as coverage.**
   severity-weighted findings — **but that retention figure is against UNTRIAGED
   output** and must not be quoted to a buyer until triaged. Shipwright's dogfood
   went 55 findings → 16 claims → **4 real**.
-- **Multi-lens review is 3.1× more token-efficient per finding** than one
-  reviewer per domain, at 77% lower cost — while sampling a *different* part of
-  the defect population, not a subset.
+- **Multi-lens review costs 77.2% less** than one reviewer per domain, and
+  samples a *different* part of the defect population — reproducing 40% of the
+  baseline while adding 16 findings the baseline missed. Not a subset, and not
+  a strict improvement. Do **not** express this as a tokens-per-finding ratio.
 - Packets cut input **65.4%** (CodeReckon, byte-parity suite).
 - CPU-first gives continuous coverage between audits at zero marginal cost.
   `identical-ternary-branches` found five real dead conditionals in ThreatForge,
@@ -210,6 +218,16 @@ as agreement, never as coverage.**
 
 **Still untested:** whether mechanisms 2, 3 and 4 compound. Given that 3 and 4
 attack the same cost, assume they do not until measured.
+
+## 7a. Confound — Arm A and Arm C differ in more than lens count
+
+They were separate sessions with different prompt text and independent sampling.
+Some of the 29% overlap is ordinary run-to-run variance, not the multi-lens
+design. This **strengthens** §6 — the reference standard is even noisier than a
+clean comparison would show — but it means §5's per-lens dilution table is
+confounded, and "codehealth collapses under multi-lens" is a hypothesis the data
+is consistent with rather than a result it establishes. Re-running Arm A's
+five-reviewer design in one session would separate the two; it has not been done.
 
 ## 8. Method note
 
