@@ -82,7 +82,10 @@ if (/^(https?:\/\/|git@|ssh:\/\/)/.test(target)) {
 // defects back to them as findings is indefensible.
 //
 // --include-tests turns this off for anyone auditing their own test suite.
-const TEST_PATH_RE = /(^|\/)(tests?|__tests__|__mocks__|spec|specs|e2e|fixtures?|eval|examples?|samples?|mocks?|testdata|__fixtures__)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$/i;
+// `test-utils` / `test-helpers` are separate segments, so `tests?` did not match
+// them — threatforge's src/test-utils/security-testing.ts reached the report as
+// two findings about deliberately-planted test strings.
+const TEST_PATH_RE = /(^|\/)(tests?|__tests__|__mocks__|spec|specs|e2e|fixtures?|eval|examples?|samples?|mocks?|testdata|__fixtures__|test[-_]?utils?|test[-_]?helpers?)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$/i;
 const INCLUDE_TESTS = flag('--include-tests');
 let excludedByPath = 0;
 const isReportable = (file) => {

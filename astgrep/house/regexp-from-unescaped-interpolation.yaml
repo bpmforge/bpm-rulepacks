@@ -18,13 +18,22 @@ rule:
     # yields false negatives when the call is not an escape helper, and no false
     # positives on code that does escape. A rule that accused correct code here
     # would be worse than one that missed some.
+    # Fire only if SOME substitution is a bare identifier/property that is not
+    # named as already-escaped. The call-expression exclusion below catches
+    # `${escapeRegExp(x)}` inline, but the commonest correct form escapes on the
+    # PREVIOUS line and interpolates the result:
+    #     const escaped = escapeRegExp(name);
+    #     return new RegExp(`^${escaped}$`, "i");
+    # By the time it reaches the template that is a bare identifier, and v1
+    # flagged all three fleet occurrences — accusing the code that does it right,
+    # which this rule's own note calls worse than missing some.
     - has:
         kind: template_substitution
         stopBy: end
         has:
           any:
-            - { kind: identifier }
-            - { kind: member_expression }
+            - { kind: identifier, not: { regex: "(?i)escap|sanitiz|quoted" } }
+            - { kind: member_expression, not: { regex: "(?i)escap|sanitiz|quoted" } }
     - not:
         has:
           kind: template_substitution
@@ -47,3 +56,27 @@ metadata:
   # TWO sibling call sites in the same codebase (format.ts:33,
   # symbols/graph.ts:552) build the identical pattern and DO call escapeRegExp()
   # first. The codebase already knows the right answer and one site disagrees.
+  #
+  # GRADED on all 24 fleet hits — the best of the three house rules measured so
+  # far, and still wrong in the one way that matters most.
+  #
+  #   real                iac-parser (8), mermaid parser (4), tool-importer (2),
+  #                       yaml-export, ftm-cli — all interpolate keys, tags and
+  #                       node ids parsed out of USER-SUPPLIED documents, which
+  #                       is exactly the injection this rule describes      16
+  #   borderline          phantomImports (module names from scanned source),
+  #                       path-filter (`pattern` may be intentionally regex),
+  #                       ledger (decisionId has no metacharacters)          3
+  #   ACCUSED CORRECT CODE  `const escaped = escapeRegExp(x)` on the previous
+  #                       line, then `${escaped}` in the template             3
+  #   test utility        threatforge src/test-utils/, deliberate test strings 2
+  #
+  # The three false positives are the serious ones: v1's inline-call exclusion
+  # only recognised `${escapeRegExp(x)}`, so the moment a codebase hoisted the
+  # escape to its own line — which is the commoner style — the rule reported the
+  # correct version as the defect. Precision ~0.67 -> ~0.84 after excluding
+  # escape-named identifiers.
+  #
+  # The 2 test-utility hits were fixed OUTSIDE this rule, in scan.mjs's
+  # TEST_PATH_RE: `tests?` never matched a `test-utils` segment. That fix
+  # benefits every rule in the pack, which is why it belongs there and not here.
