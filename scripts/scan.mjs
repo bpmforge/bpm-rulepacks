@@ -66,6 +66,32 @@ if (/^(https?:\/\/|git@|ssh:\/\/)/.test(target)) {
   if (!existsSync(scanPath) || !statSync(scanPath).isDirectory()) { console.error(`not a directory: ${scanPath}`); process.exit(2); }
 }
 
+// ---- report-level path filtering ------------------------------------------
+// Test, fixture and eval directories are excluded from a REPORT by default.
+//
+// This belongs in the scanner, not in the rules, and the distinction matters:
+// a rule MUST fire on this repo's own fixtures/ tree or its RED/GREEN pair can
+// never go red — that lesson cost a broken `npm test` when `*fixture*` was put
+// in a rule's paths.exclude. But a report over someone else's repository should
+// not list their test data as defects.
+//
+// Measured on lodestone: two "insecure random token" findings that are entirely
+// correct — Math.random() for a session id — sitting in
+// eval/fixtures/sample-repo/, which is DELIBERATELY VULNERABLE code Lodestone
+// ships to test its own retrieval engine. Reporting a customer's planted test
+// defects back to them as findings is indefensible.
+//
+// --include-tests turns this off for anyone auditing their own test suite.
+const TEST_PATH_RE = /(^|\/)(tests?|__tests__|__mocks__|spec|specs|e2e|fixtures?|eval|examples?|samples?|mocks?|testdata|__fixtures__)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$/i;
+const INCLUDE_TESTS = flag('--include-tests');
+let excludedByPath = 0;
+const isReportable = (file) => {
+  if (INCLUDE_TESTS) return true;
+  if (!TEST_PATH_RE.test(String(file))) return true;
+  excludedByPath++;
+  return false;
+};
+
 // ---- which packs -----------------------------------------------------------
 const allPacks = readdirSync(join(ROOT, 'packs')).filter((d) => statSync(join(ROOT, 'packs', d)).isDirectory());
 const wantPacks = valOf('--pack') ? valOf('--pack').split(',').map((s) => s.trim()) : allPacks;
@@ -93,10 +119,12 @@ const findings = [];
 for (const run of sarif.runs || []) {
   for (const res of run.results || []) {
     const loc = res.locations?.[0]?.physicalLocation;
+    const uri0 = loc?.artifactLocation?.uri || '';
+    if (!isReportable(uri0)) continue;
     findings.push({
       engine: engine,
       ruleId: res.ruleId,
-      file: loc?.artifactLocation?.uri || '',
+      file: uri0,
       line: loc?.region?.startLine ?? null,
       level: res.level || 'warning',
       message: res.message?.text || '',
@@ -114,6 +142,7 @@ if (have('ast-grep') && existsSync(join(ROOT, 'astgrep'))) {
   const astFindings = [];
   const collect = (json) => {
     for (const m of JSON.parse(json || '[]')) {
+      if (!isReportable(m.file || '')) continue;
       const f = {
         engine: 'ast-grep',
         ruleId: m.ruleId || m.rule_id || '',
@@ -182,6 +211,12 @@ if (findings.length === 0) {
     console.log(`\n  ⚠ ${noisy.map(([id]) => id).join(', ')} account for most findings.`);
     console.log('    Volume is not severity. Triage the top rule before reading the total as risk.');
   }
+}
+
+if (excludedByPath) {
+  console.log(`\n${excludedByPath} finding(s) in test/fixture/eval paths were EXCLUDED from this report.`);
+  console.log('  Named, not hidden: --include-tests to see them. Deliberately-planted');
+  console.log('  test defects are not findings about the product.');
 }
 
 const outPath = valOf('--out') || join(tmpdir(), `rulepacks-scan-${basename(scanPath)}.sarif`);
