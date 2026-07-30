@@ -1,0 +1,57 @@
+id: bpm-house-async-effect-no-cleanup
+language: tsx
+severity: warning
+message: >
+  This useEffect awaits async work but returns no cleanup function, so nothing
+  cancels it. Two real failures follow. If the component unmounts before the
+  promise settles, the resolve path still calls setState on a dead component.
+  And if the effect re-runs — a changed dependency, a fast click, a poll — two
+  requests are in flight with no ordering guarantee, so the SLOWER one wins and
+  the UI shows stale data that looks current. Return a cleanup that either
+  aborts the request (AbortController) or sets a cancelled flag the resolve path
+  checks before touching state.
+rule:
+  all:
+    - pattern: "useEffect($ARG, $DEPS)"
+    # Async work takes three shapes in an effect, and the rule missed two of
+    # them on first measurement: an inline await, a fire-and-forget `void
+    # someAsync()`, and a `.then()` chain. All four of shipwright's real sites
+    # are the `void` form — the rule found ZERO there until this was widened.
+    # `void` on a call is the established idiom for a deliberately un-awaited
+    # promise, which makes it a reliable signal rather than a guess.
+    - any:
+        - { has: { kind: await_expression, stopBy: end } }
+        - { has: { pattern: "void $F($$$A)", stopBy: end } }
+        - { has: { pattern: "$P.then($$$H)", stopBy: end } }
+    # The discriminator is the CLEANUP, not the presence of an AbortController:
+    # a `let cancelled = false` flag released by the returned function is just as
+    # correct, and requiring AbortController specifically would false-positive on
+    # that perfectly good pattern. Any returned function counts.
+    - not:
+        has:
+          kind: return_statement
+          stopBy: end
+          has:
+            any:
+              - { kind: arrow_function }
+              - { kind: function_expression }
+metadata:
+  license: proprietary
+  provenance: "derived:shipwright/FE-02,FE-03,FE-04,FE-06"
+  cwe: [662]
+  confidence: medium
+  concept: code_quality
+  domain: frontend
+  since: "0.2.0"
+  # FIRST REACT RULE IN THE SYSTEM. Round 3 was chosen partly to reach this
+  # surface: quarry and lodestone have no UI at all, so two rounds of review
+  # could not have surfaced a React defect class.
+  #
+  # From an LLM frontend review of shipwright, which found FOUR independent
+  # sites of this exact shape — the artifact viewer, the command palette, the
+  # ticket-drawer evidence panel, and a shared settings hook. In a product built
+  # around live streams and a 5-second poll, out-of-order responses are not
+  # theoretical.
+  #
+  # Deliberately NOT flagged: an effect with no async work at all, and an effect
+  # that returns any cleanup function. Both appear in the .ok fixture.
