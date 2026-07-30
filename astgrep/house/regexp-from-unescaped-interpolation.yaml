@@ -1,0 +1,49 @@
+id: bpm-house-regexp-from-unescaped-interpolation
+language: ts
+severity: warning
+message: >
+  A RegExp is built from a template literal that interpolates a bare variable
+  or property with no escaping. Every regex metacharacter in that value —
+  `.` `*` `+` `?` `(` `)` `[` `]` `{` `}` `|` `^` `$` `\` — changes what the
+  pattern MEANS rather than being matched literally. If the value comes from
+  scanned source, a filename, a query, or any other input, that is regex
+  injection: at best the match is silently wrong, at worst a crafted value
+  produces catastrophic backtracking and hangs the process (CWE-1333). Pass it
+  through an escape helper first, e.g. escapeRegExp(name).
+rule:
+  all:
+    - pattern: "new RegExp($$$ARGS)"
+    # An interpolation that is a bare identifier or property access is raw. One
+    # that is a CALL is assumed escaped — conservative in the safe direction: it
+    # yields false negatives when the call is not an escape helper, and no false
+    # positives on code that does escape. A rule that accused correct code here
+    # would be worse than one that missed some.
+    - has:
+        kind: template_substitution
+        stopBy: end
+        has:
+          any:
+            - { kind: identifier }
+            - { kind: member_expression }
+    - not:
+        has:
+          kind: template_substitution
+          stopBy: end
+          has: { kind: call_expression, stopBy: end }
+metadata:
+  license: proprietary
+  provenance: "derived:lodestone/SEC-03"
+  cwe: [1333]
+  confidence: medium
+  concept: input_validation
+  domain: security
+  since: "0.2.0"
+  # From an LLM security review of lodestone (src/metrics/phantomImports.ts:208),
+  # where an import-binding name pulled out of SCANNED SOURCE by a loose regex
+  # parser — i.e. attacker-shaped text from an indexed repository — is
+  # interpolated straight into a RegExp.
+  #
+  # This finding carries its own oracle, which is why it was worth mechanizing:
+  # TWO sibling call sites in the same codebase (format.ts:33,
+  # symbols/graph.ts:552) build the identical pattern and DO call escapeRegExp()
+  # first. The codebase already knows the right answer and one site disagrees.

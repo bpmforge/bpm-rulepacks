@@ -1,0 +1,50 @@
+id: bpm-house-prepared-statement-in-loop
+language: ts
+severity: warning
+message: >
+  A SQL statement is prepared inside a loop, so it is parsed and planned again
+  on every iteration. Statement preparation is the expensive half of a query,
+  and reusing a prepared statement is the entire performance advantage of a
+  driver like better-sqlite3 — preparing per row throws it away and turns one
+  batch into N compilations. Hoist the prepare() call above the loop and invoke
+  the statement inside it.
+rule:
+  all:
+    - pattern: "$DB.prepare($$$QUERY)"
+    - inside:
+        any:
+          - { kind: for_in_statement }
+          - { kind: for_statement }
+          - { kind: while_statement }
+          - { kind: do_statement }
+        stopBy: end
+metadata:
+  license: proprietary
+  provenance: "derived:lodestone/PERF-09"
+  cwe: [1050]
+  confidence: high
+  concept: sql_database
+  domain: performance
+  since: "0.2.0"
+  # DOES NOT CATCH THE FINDINGS THAT MOTIVATED IT, and that is the point worth
+  # recording. lodestone's PERF-09/PERF-10 are `prepare()` inside a METHOD that
+  # is called from a loop (getFileMtime per file, queryCallers per symbol) — the
+  # prepare and the loop are in different functions, so no lexical pattern can
+  # see it. Fleet result: lodestone 0, shipwright 9.
+  #
+  # THIRD OCCURRENCE of this exact limitation:
+  #   sync-fs-in-async-fn        misses quarry cache.ts:67 (sync fn, async caller)
+  #   regexp-constructed-in-loop misses callback iteration (.forEach)
+  #   prepared-statement-in-loop misses lodestone PERF-09/10 (method in a loop)
+  # The pattern tier systematically misses "X inside a function reached from a
+  # loop or an async path". That is one graph query, and it would close all
+  # three at once — a stronger argument for fixing the reachability detector's
+  # entry-point seeding than for writing a fourth pattern rule.
+  #
+  # It still earns its place: shipwright has 9 direct instances the pattern tier
+  # sees perfectly well.
+  #
+  # The first rule we own that knows anything about database ACCESS PATTERNS
+  # rather than query text — a class that could not have appeared in round 1,
+  # because quarry has no database at all. That is the argument for choosing a
+  # structurally different repo for each round.
