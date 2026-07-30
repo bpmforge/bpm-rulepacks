@@ -41,6 +41,19 @@ for (const f of readdirSync(dir).filter((x) => /^findings-.*\.json$/.test(x))) {
 if (!findings.length) { console.error(`no findings found in ${dir}`); process.exit(1); }
 
 const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+// Escaping-tolerant comparison. A one-character transcription slip in a quote
+// must not discard a real finding: lodestone's phantomImports.ts:208 genuinely
+// lacks the escapeRegExp() call its two sibling sites have, and the finding was
+// being thrown out as NOT-IN-FILE because the reviewer wrote \b where the file
+// has \\b. Backslash density is exactly what a human or a model gets wrong when
+// transcribing a regex, and it is never what the finding is about.
+//
+// The skeleton drops every non-alphanumeric character, so escaping, quoting and
+// whitespace differences all collapse while the identifiers and structure that
+// identify the line survive. A skeleton match is accepted as QUOTE-INEXACT —
+// kept, but counted separately, because an inexact quote is a real (small)
+// integrity signal and silently normalising it away would hide it.
+const skel = (s) => String(s ?? '').replace(/[^A-Za-z0-9]/g, '');
 const rows = [];
 for (const f of findings) {
   const p = join(repo, f.file || '');
@@ -56,7 +69,18 @@ for (const f of findings) {
       const all = lines.map(norm);
       const at = all.findIndex((l) => l.includes(want.slice(0, Math.min(want.length, 60))));
       if (at >= 0) { verdict = 'DRIFTED'; detail = `actually at line ${at + 1}`; }
-      else verdict = 'NOT-IN-FILE';
+      else {
+        // Escaping-tolerant retry before giving up.
+        const wantSk = skel(f.code);
+        const nearSk = skel(lines.slice(Math.max(0, (f.line || 1) - 4), (f.line || 1) + 3).join(' '));
+        const cut = wantSk.slice(0, Math.min(wantSk.length, 40));
+        if (cut && nearSk.includes(cut)) { verdict = 'QUOTE-INEXACT'; detail = 'quote differs only in escaping/punctuation'; }
+        else {
+          const atSk = lines.findIndex((l) => cut && skel(l).includes(cut));
+          if (atSk >= 0) { verdict = 'QUOTE-INEXACT'; detail = `escaping differs; line ${atSk + 1}`; }
+          else verdict = 'NOT-IN-FILE';
+        }
+      }
     }
   }
   rows.push({ ...f, verdict, detail });
@@ -66,7 +90,7 @@ const by = (v) => rows.filter((r) => r.verdict === v);
 console.log(`\n# Finding verification — ${basename(repo)}\n`);
 console.log(`| Verdict | Count |`);
 console.log(`|---|---|`);
-for (const v of ['VERIFIED', 'DRIFTED', 'NOT-IN-FILE', 'NO-FILE', 'NO-QUOTE']) console.log(`| ${v} | ${by(v).length} |`);
+for (const v of ['VERIFIED', 'DRIFTED', 'QUOTE-INEXACT', 'NOT-IN-FILE', 'NO-FILE', 'NO-QUOTE']) console.log(`| ${v} | ${by(v).length} |`);
 console.log(`| **total** | **${rows.length}** |`);
 
 const bad = rows.filter((r) => ['NOT-IN-FILE', 'NO-FILE', 'NO-QUOTE'].includes(r.verdict));
@@ -86,14 +110,14 @@ console.log(`\n## By domain (grounded only)\n`);
 console.log('| Domain | VERIFIED+DRIFTED | excluded |');
 console.log('|---|---|---|');
 for (const d of [...new Set(rows.map((r) => r.domain))]) {
-  const g = rows.filter((r) => r.domain === d && ['VERIFIED', 'DRIFTED'].includes(r.verdict)).length;
+  const g = rows.filter((r) => r.domain === d && ['VERIFIED', 'DRIFTED', 'QUOTE-INEXACT'].includes(r.verdict)).length;
   const x = rows.filter((r) => r.domain === d).length - g;
   console.log(`| ${d} | ${g} | ${x} |`);
 }
 
 const sarifIdx = argv.indexOf('--sarif');
 if (sarifIdx >= 0 && argv[sarifIdx + 1]) {
-  const keep = rows.filter((r) => ['VERIFIED', 'DRIFTED'].includes(r.verdict));
+  const keep = rows.filter((r) => ['VERIFIED', 'DRIFTED', 'QUOTE-INEXACT'].includes(r.verdict));
   const results = keep.map((r) => ({
     ruleId: `LLM-${r.id}`,
     level: /critical|high/i.test(r.severity) ? 'error' : /low/i.test(r.severity) ? 'note' : 'warning',
