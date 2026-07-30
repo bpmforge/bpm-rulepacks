@@ -13,6 +13,13 @@ message: >
 rule:
   all:
     - pattern: "useEffect($ARG, $DEPS)"
+    # An EMPTY dependency array means the effect runs once per mount, so there is
+    # never a second request in flight to race the first — and since React 18 a
+    # setState on an unmounted component is a silent no-op, not a leak. Both
+    # failures in the message above need the effect to re-run. Excluding `[]` is
+    # the difference between describing a real race and objecting to
+    # fetch-on-mount, which is not a defect.
+    - not: { pattern: "useEffect($ARG, [])" }
     # Async work takes three shapes in an effect, and the rule missed two of
     # them on first measurement: an inline await, a fire-and-forget `void
     # someAsync()`, and a `.then()` chain. All four of shipwright's real sites
@@ -55,3 +62,25 @@ metadata:
   #
   # Deliberately NOT flagged: an effect with no async work at all, and an effect
   # that returns any cleanup function. Both appear in the .ok fixture.
+  #
+  # GRADED on all 24 fleet hits, and it is the BEST rule in the house pack —
+  # the only one where measurement largely confirmed it instead of demolishing it.
+  #
+  # The discriminator is the dependency array, checked mechanically across every
+  # hit: 23 of 24 are NON-EMPTY, so the effect re-runs on user-driven input and
+  # the stale-response race in the message above is genuinely reachable. Spot
+  # checks confirm it is not theoretical — EvidencePanel re-fetches on
+  # `ticket.id`, so switching tickets quickly renders one ticket's receipts under
+  # another's heading, and TelemetryPanel does the same on `[apiOpts, projectId,
+  # ticketId]`. SuppressionsPanel's `[refresh]` looks stable but `refresh` is a
+  # useCallback over `[projectId]`, so it re-runs too.
+  #
+  # The single exception was the one fixed here: an EMPTY `[]` array. Precision
+  # ~0.96 before the fix, 23 of 23 after.
+  #
+  # Worth recording WHY this rule survived measurement when the other three did
+  # not: its trigger is a structural property of the code (a returned cleanup
+  # function is present or it is not), while the three that failed all keyed off
+  # NAMES — `token`-ish identifiers, a `res` receiver, a bare interpolation.
+  # Name-based rules carry the ambiguity of English into the matcher; this one
+  # does not.

@@ -39,3 +39,19 @@ export function Counter() {
   }, []);
   return <span>{n}</span>;
 }
+
+// ── Mount-only effect: an EMPTY dependency array. ────────────────────────────
+// Both failures this rule describes need the effect to RE-RUN. With `[]` there
+// is never a second request in flight to race the first, and since React 18 a
+// setState on an unmounted component is a silent no-op rather than a leak.
+// Flagging this would be objecting to fetch-on-mount, which is not a defect.
+// Real shape: shipwright apps/web/src/notifications/NotificationsView.tsx:23.
+export function NotificationsView() {
+  const [projects, setProjects] = useState<string[]>([]);
+  useEffect(() => {
+    fetchProjects({ archived: false })
+      .then(setProjects)
+      .catch(() => setProjects([]));
+  }, []);
+  return projects.length;
+}
