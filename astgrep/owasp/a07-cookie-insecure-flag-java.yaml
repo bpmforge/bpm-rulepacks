@@ -10,7 +10,7 @@ message: >
   (open wifi, ARP spoofing, a misconfigured proxy) capture it in the clear.
   Set secure(true) on any cookie carrying a session id or credential.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [614]
   owasp: "A07:2021"

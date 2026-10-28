@@ -15,7 +15,7 @@ message: >
   exclusively loads content you fully control, annotate exposed methods
   with @JavascriptInterface, and keep the bridge's surface minimal.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [749]
   owasp: "A05:2021"

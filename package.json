@@ -2,7 +2,7 @@
   "name": "@bpmforge/rulepacks",
   "version": "0.1.0",
   "private": true,
-  "description": "Proprietary Opengrep + ast-grep static-analysis rule packs for the bpmforge fleet",
+  "description": "MIT-licensed Opengrep + ast-grep static-analysis rule packs for the bpmforge fleet",
   "type": "module",
   "scripts": {
     "test": "node scripts/test-rules.mjs",
@@ -16,5 +16,5 @@
     "misses": "node scripts/next-miss.mjs",
     "report": "node scripts/rule-report.mjs"
   },
-  "license": "SEE LICENSE IN LICENSE"
+  "license": "MIT"
 }

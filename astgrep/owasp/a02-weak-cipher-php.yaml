@@ -14,7 +14,7 @@ message: >
   unmaintained since 2007. Use openssl_encrypt() with 'aes-256-gcm' (an
   authenticated mode) and a random per-message IV instead.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327]
   owasp: "A02:2021"

@@ -16,7 +16,7 @@ message: >
 # Primary source: Rails Security Guide (Mass Assignment §) + OWASP A04:2021
 # guidance.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [915]
   owasp: "A04:2021"

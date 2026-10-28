@@ -18,7 +18,7 @@ message: >
   from a handful of observed values. Use SecureRandom (hex, urlsafe_base64,
   random_number) for anything security-sensitive; it is CSPRNG-backed.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

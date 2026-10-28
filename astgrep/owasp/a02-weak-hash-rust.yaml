@@ -19,7 +19,7 @@ message: >
   integrity/signing, and argon2 or bcrypt (never a bare digest) for
   password storage.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327, 328]
   owasp: "A02:2021"

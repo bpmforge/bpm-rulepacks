@@ -36,7 +36,7 @@ rule:
               - { kind: arrow_function }
               - { kind: function_expression }
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:shipwright/FE-02,FE-03,FE-04,FE-06"
   cwe: [662]
   confidence: medium

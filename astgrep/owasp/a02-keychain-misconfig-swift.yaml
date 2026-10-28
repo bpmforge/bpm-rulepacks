@@ -17,7 +17,7 @@ message: >
   kSecAttrAccessibleWhenUnlocked if iCloud Keychain sync is required)
   instead.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [522]
   owasp: "A02:2021"

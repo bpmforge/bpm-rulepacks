@@ -17,7 +17,7 @@ message: >
   for integrity/signing, and a password-hashing KDF (never a bare digest)
   for credential storage.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327, 328]
   owasp: "A02:2021"

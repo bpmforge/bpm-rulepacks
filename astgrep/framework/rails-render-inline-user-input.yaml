@@ -21,7 +21,7 @@ message: >
 # Primary source: Rails Security Guide (Rendering §, dynamic render
 # paths) + OWASP Server-Side Template Injection guidance + CWE-1336.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [1336]
   owasp: "A03:2021"

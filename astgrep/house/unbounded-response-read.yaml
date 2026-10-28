@@ -36,7 +36,7 @@ rule:
             regex: "content-length|contentLength|MAX_BYTES|maxBytes|maxSize|sizeLimit|byteLimit|maxLength|truncat|\\blimit\\b"
             stopBy: end
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:quarry/SEC-03,lodestone/SEC-05"
   cwe: [400, 770]
   confidence: medium

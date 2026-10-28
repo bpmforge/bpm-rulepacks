@@ -31,7 +31,7 @@ rule:
           stopBy: end
           has: { kind: call_expression, stopBy: end }
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:lodestone/SEC-03"
   cwe: [1333]
   confidence: medium

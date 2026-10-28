@@ -20,7 +20,7 @@ message: >
   completionHandler(.cancelAuthenticationChallenge, nil) when evaluation
   fails.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [295]
   owasp: "A02:2021"

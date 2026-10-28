@@ -17,7 +17,7 @@ message: >
 # Primary source: Rails Security Guide (CSRF Protection §) + OWASP CSRF
 # Prevention Cheat Sheet.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [352]
   owasp: "A01:2021"

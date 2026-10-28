@@ -15,7 +15,7 @@ message: >
   ciphertext blocks. Use AES-256 in GCM mode (kCCAlgorithmAES with a
   authenticated mode, or CryptoKit's AES.GCM) instead.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327]
   owasp: "A02:2021"

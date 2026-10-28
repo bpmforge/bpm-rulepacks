@@ -21,7 +21,7 @@ message: >
 # Primary source: Rails Security Guide (Cross-Site Scripting §, html_safe /
 # raw) + OWASP XSS Prevention Cheat Sheet.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [79]
   owasp: "A03:2021"

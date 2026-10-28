@@ -19,7 +19,7 @@ message: >
   Sanitize/escape the content before rendering, or load it as data (not
   markup) via a template that never treats untrusted text as HTML.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [79]
   owasp: "A03:2021"

@@ -23,7 +23,7 @@ message: >
   unsafe code relies on are actually upheld, and prefer a safe abstraction
   (or a well-audited crate) over hand-rolled unsafe where one exists.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [242]
   confidence: low

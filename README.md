@@ -1,6 +1,6 @@
 # bpm-rulepacks
 
-Proprietary static-analysis rule packs for the bpmforge fleet — **CodeReckon** (paid audits), **RepoPulse** (SaaS), and the **opencode/Claude expert system**. Authored in-house so we never depend on Semgrep's registry rules (whose license bans service use) or any AGPL rule corpus.
+Open (MIT) static-analysis rule packs for the bpmforge fleet — **CodeReckon** (paid audits), **RepoPulse** (SaaS), and the **opencode/Claude expert system**. Authored in-house so we never depend on Semgrep's registry rules (whose license bans service use) or any AGPL rule corpus.
 
 ## Why this exists
 
@@ -30,7 +30,7 @@ Every rule carries bpmforge provenance under `metadata:` — enforced by `script
 
 ```yaml
 metadata:
-  license: proprietary          # or "public-teaser" for the MIT subset shipped in slop-scorecard
+  license: MIT                  # every rule; the repository is MIT (decision 2026-10-28)
   provenance: authored          # authored | ported:<source> | llm_draft (llm_draft never auto-activates)
   cwe: [798]
   owasp: "A07:2021"
@@ -71,9 +71,12 @@ The engines themselves are separate binaries: `opengrep` (LGPL, install via its
 own `install.sh`) and `ast-grep` (`npm i -g @ast-grep/cli`). Raw invocation
 still works if you want it: `opengrep scan --config ./packs/ --sarif src/`.
 
-## Public teaser subset
+## Licence
 
-Rules tagged `license: public-teaser` are mirrored (MIT) into `slop-scorecard` for marketing reach. Everything else is proprietary and ships only inside CodeReckon/RepoPulse.
+MIT (owner decision 2026-10-28; until then the rules were proprietary, with an
+MIT "public-teaser" subset mirrored into `slop-scorecard`). Every rule is
+authored from primary sources or ported from our own MIT/Apache projects; no
+Semgrep-registry or AGPL rule is ever copied in (`docs/AUTHORING.md`).
 
 ## Authoring order (seeding the corpus)
 

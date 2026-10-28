@@ -31,7 +31,7 @@ message: >
   OS entropy (`StdRng::from_entropy()` or `StdRng::from_rng(OsRng)`) for
   anything security-sensitive.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

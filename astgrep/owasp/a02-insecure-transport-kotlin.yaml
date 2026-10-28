@@ -17,7 +17,7 @@ message: >
   default TrustManager/HostnameVerifier, or pin the specific certificate
   you expect — never accept unconditionally.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [295]
   owasp: "A02:2021"

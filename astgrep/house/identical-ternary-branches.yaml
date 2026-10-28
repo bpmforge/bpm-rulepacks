@@ -9,7 +9,7 @@ message: >
 rule:
   pattern: "$C ? $X : $X"
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:quarry/SLOP-identical-ternary"
   cwe: [570]
   confidence: high

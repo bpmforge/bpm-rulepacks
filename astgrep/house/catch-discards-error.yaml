@@ -20,7 +20,7 @@ rule:
     - not:
         pattern: "try { $$$BODY } catch { }"
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:quarry/LOG-catch-discards-error"
   cwe: [778]
   confidence: medium

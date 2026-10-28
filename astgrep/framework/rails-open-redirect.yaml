@@ -19,7 +19,7 @@ message: >
 # Primary source: Rails Security Guide (Redirection §) + OWASP
 # Unvalidated Redirects and Forwards Cheat Sheet + CWE-601.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [601]
   owasp: "A01:2021"

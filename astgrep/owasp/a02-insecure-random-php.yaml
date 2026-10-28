@@ -14,7 +14,7 @@ message: >
   observed outputs. Use random_bytes()/random_int() (CSPRNG-backed,
   available since PHP 7) for anything security-sensitive.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

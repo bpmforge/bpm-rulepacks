@@ -18,7 +18,7 @@ message: >
   instead (kSecClassGenericPassword with an appropriate kSecAttrAccessible
   level), never in UserDefaults.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [312]
   owasp: "A02:2021"

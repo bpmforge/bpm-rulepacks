@@ -18,7 +18,7 @@ message: >
   signatures, or integrity checks. Use SHA-256 or better for integrity/
   signing, and bcrypt/argon2 (never a bare digest) for password storage.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327, 328]
   owasp: "A02:2021"

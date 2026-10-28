@@ -23,7 +23,7 @@ message: >
   HostnameVerifier, or pin the specific certificate/hostname you expect —
   never accept unconditionally.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [295]
   owasp: "A05:2021"
