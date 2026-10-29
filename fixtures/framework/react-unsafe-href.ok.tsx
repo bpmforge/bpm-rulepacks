@@ -16,3 +16,13 @@ export function DocsLink() {
 export function EmbeddedWidget() {
   return <iframe src="https://widgets.example.com/embed" />;
 }
+
+// A free-function sanitizer is as good as a method one (outline's
+// shared/utils/urls sanitizeUrl rejects javascript: and data: schemes).
+export function ImageLink({ imageLink }: { imageLink: string }) {
+  return (
+    <a href={sanitizeUrl(imageLink)} rel="noopener noreferrer" target="_blank">
+      open
+    </a>
+  );
+}
