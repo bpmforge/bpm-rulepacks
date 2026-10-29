@@ -16,6 +16,13 @@ rule:
     - kind: line_comment
     - kind: block_comment
   regex: "[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{2B00}-\\x{2BFF}]"
+  # Rustdoc comments are excluded (2026-10-28, RepoPulse
+  # docs/benchmarks/rule-grade-w22-07): all 16 axum hits were `///` and `//!`
+  # docs using a warning sign or a feature-table check mark, a convention in a
+  # human-written crate years older than code assistants. Plain `//` comments
+  # still fire.
+  not:
+    regex: "^(///|//!|/\\*\\*|/\\*!)"
 message: >
   emoji in source comment (ANTI_SLOP R-16) — emojis in code comments are a
   near-certain AI giveaway to experienced reviewers ("generated, not

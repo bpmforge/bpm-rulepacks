@@ -9,3 +9,7 @@ fn logout(session_id: &str) {
 }
 
 fn invalidate_session(_session_id: &str) {}
+
+/// ⚠️ Since parsing JSON consumes the request body, this extractor must be last.
+//! `json` | Enables the [`Json`] type | <span role="img" aria-label="Default feature">✔</span>
+pub fn doc_comment_warning_markers() {}

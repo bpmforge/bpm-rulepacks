@@ -23,6 +23,22 @@ rule:
         - { has: { kind: await_expression, stopBy: end } }
         - { has: { pattern: "void $F($$$A)", stopBy: end } }
         - { has: { pattern: "$P.then($$$H)", stopBy: end } }
+    # The harm needs local state for the response to land in. Narrowed
+    # 2026-10-28 after grading outline (RepoPulse
+    # docs/benchmarks/rule-grade-w22-07): 24 of 30 sampled hits were a
+    # fire-and-forget fetch into a shared store (`void collections.fetch()`),
+    # which cannot go stale per component. A call to a useState setter
+    # (`setX(...)`) is what the resolve path writes to.
+    # This drops one true outline hit (#197, TemplateNew.tsx): an effect that
+    # CREATES a template on mount, which StrictMode's double effect runs twice.
+    # That is a different defect (a non-idempotent effect) and needs its own rule.
+    - has:
+        stopBy: end
+        kind: call_expression
+        has:
+          field: function
+          kind: identifier
+          regex: "^set[A-Z]"
     # The discriminator is the CLEANUP, not the presence of an AbortController:
     # a `let cancelled = false` flag released by the returned function is just as
     # correct, and requiring AbortController specifically would false-positive on

@@ -39,3 +39,13 @@ export function Counter() {
   }, []);
   return <span>{n}</span>;
 }
+
+// Fire-and-forget into a shared store: the component holds no state for the
+// response to land in, so there is nothing to go stale on unmount or reorder.
+// 24 of 30 sampled outline hits were this (MobX stores: collections.fetch...).
+export function Sidebar({ collections }: { collections: CollectionsStore }) {
+  useEffect(() => {
+    void collections.fetchAllIfNeeded();
+  }, [collections]);
+  return null;
+}
