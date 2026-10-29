@@ -16,7 +16,7 @@ message: >
   blocks mean the code needs narration to be understood. Fix the code (name
   things well enough that the sequence is self-evident), not the comments.
 metadata:
-  license: public-teaser
+  license: MIT
   provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-14"
   cwe: [1078]
   confidence: high

@@ -20,7 +20,7 @@ message: >
   execution. Use JSON.parse for a data-only format, or YAML.safe_load
   with an explicit permitted_classes allowlist.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [502]
   owasp: "A08:2021"

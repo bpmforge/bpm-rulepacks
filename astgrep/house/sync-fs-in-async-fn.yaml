@@ -27,7 +27,7 @@ rule:
         regex: "(^|\\s)async\\s"
         stopBy: end
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:quarry/PERF-sync-io-on-async-path"
   cwe: [1050]
   confidence: medium

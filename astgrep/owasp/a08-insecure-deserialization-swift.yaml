@@ -20,7 +20,7 @@ message: >
   explicit allowed-class list, or leave requiresSecureCoding at its true
   default when constructing NSKeyedUnarchiver(forReadingFrom:) directly.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [502]
   owasp: "A08:2021"

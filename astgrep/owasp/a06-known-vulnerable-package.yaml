@@ -13,7 +13,7 @@ message: >
   with an actively maintained equivalent (e.g. "got"/"undici" for "request")
   and re-run a CVE scan (osv-scanner/npm audit) before shipping.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A06"
   cwe: [1104]
   owasp: "A06:2021"

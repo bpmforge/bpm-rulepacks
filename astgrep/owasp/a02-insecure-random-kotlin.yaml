@@ -14,7 +14,7 @@ message: >
   any token, session key, PIN, or reset code derived from it. Use
   java.security.SecureRandom for anything security-sensitive.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

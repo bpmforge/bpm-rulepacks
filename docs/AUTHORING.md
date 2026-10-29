@@ -34,7 +34,7 @@ Author both formats only when a rule is used in both the fast structural sweep a
 
 ```yaml
 metadata:
-  license: proprietary        # proprietary | public-teaser (public-teaser also ships MIT in slop-scorecard)
+  license: MIT                # every rule (the repository is MIT)
   provenance: authored        # authored | ported:<source-path-or-ref> | llm_draft
   cwe: [89]
   owasp: "A03:2021"           # optional but preferred

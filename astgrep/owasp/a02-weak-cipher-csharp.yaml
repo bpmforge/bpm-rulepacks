@@ -18,7 +18,7 @@ message: >
   "ECB penguin"). Use AES with CBC (with a random IV and MAC) or an AEAD
   mode (GCM/ChaCha20-Poly1305) instead.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327]
   owasp: "A02:2021"

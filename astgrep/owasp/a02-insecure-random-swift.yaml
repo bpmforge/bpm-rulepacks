@@ -19,7 +19,7 @@ message: >
   SecRandomCopyBytes (or a CryptoKit SymmetricKey) for anything
   security-sensitive.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

@@ -13,7 +13,7 @@ message: >
   "remember me" cookie derived from it. Use java.security.SecureRandom for
   anything security-sensitive.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

@@ -10,7 +10,7 @@ message: >
   triggers an error. Read this from an environment variable and default to
   False.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A05"
   cwe: [489]
   owasp: "A05:2021"

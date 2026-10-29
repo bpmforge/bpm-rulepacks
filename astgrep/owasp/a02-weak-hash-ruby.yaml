@@ -22,7 +22,7 @@ message: >
   (has_secure_password / BCrypt::Password) or Argon2, and let the
   library manage salting, instead of a bare hash function.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327, 328]
   owasp: "A02:2021"

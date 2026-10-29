@@ -20,7 +20,7 @@ message: >
   required, evaluate `errors == SslPolicyErrors.None` (or a pinned
   certificate/public-key comparison) instead of returning a constant.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [295]
   owasp: "A02:2021"

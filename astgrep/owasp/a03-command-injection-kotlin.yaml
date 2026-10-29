@@ -21,7 +21,7 @@ message: >
   and a strict argument list (no shell interpretation), or avoid the
   subprocess entirely.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [78]
   owasp: "A03:2021"

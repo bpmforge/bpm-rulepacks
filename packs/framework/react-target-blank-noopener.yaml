@@ -13,7 +13,7 @@ rules:
       - pattern-not: <a target="_blank" rel="noopener noreferrer" ...></a>
       - pattern-not: <a target="_blank" rel="noreferrer noopener" ...></a>
     metadata:
-      license: proprietary
+      license: MIT
       provenance: authored
       cwe: [1022]
       framework: react

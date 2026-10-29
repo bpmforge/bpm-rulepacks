@@ -17,7 +17,7 @@ message: >
   PASSWORD_BCRYPT or PASSWORD_ARGON2ID, and verify with
   password_verify(), instead of a bare hash function.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327, 328]
   owasp: "A02:2021"

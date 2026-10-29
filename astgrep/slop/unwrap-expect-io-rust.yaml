@@ -36,7 +36,7 @@ message: >
   cases where failure is truly a programmer error (test code, a value
   already validated as `Some`/`Ok`, etc.).
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [248, 703]
   confidence: medium

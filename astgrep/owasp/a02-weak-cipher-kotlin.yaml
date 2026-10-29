@@ -21,7 +21,7 @@ message: >
   Kotlin. Use AES-256/GCM (or another authenticated mode) instead, and
   never ECB mode for any cipher.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327]
   owasp: "A02:2021"

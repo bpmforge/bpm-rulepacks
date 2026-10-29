@@ -21,7 +21,7 @@ message: >
   PendingIntent.FLAG_IMMUTABLE (or FLAG_MUTABLE only if the receiver
   genuinely needs to fill in extras, and even then prefer immutable).
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [926]
   owasp: "A01:2021"

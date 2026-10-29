@@ -16,7 +16,7 @@ message: >
   authored"). Remove it; emojis belong in commit messages or PR descriptions
   where the author intentionally placed them.
 metadata:
-  license: public-teaser
+  license: MIT
   provenance: "ported:bpm-opencode-experts/ANTI_SLOP_RULES R-16"
   cwe: [1078]
   confidence: high

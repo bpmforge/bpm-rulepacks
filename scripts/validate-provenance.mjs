@@ -7,7 +7,7 @@ import { join, extname } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const REQUIRED = ['license', 'provenance', 'confidence', 'since'];
-const LICENSES = new Set(['proprietary', 'public-teaser']);
+const LICENSES = new Set(['MIT']);
 
 function walk(dir) {
   const out = [];

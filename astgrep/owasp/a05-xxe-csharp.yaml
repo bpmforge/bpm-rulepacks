@@ -20,7 +20,7 @@ message: >
   omit it — null is the framework default on modern .NET) so external
   entities are never resolved.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [611]
   owasp: "A05:2021"

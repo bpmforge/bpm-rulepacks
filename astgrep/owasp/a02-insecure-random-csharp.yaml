@@ -19,7 +19,7 @@ message: >
   RandomNumberGenerator.GetHexString()/GetString() in .NET 8+) for anything
   security-sensitive.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [330]
   owasp: "A02:2021"

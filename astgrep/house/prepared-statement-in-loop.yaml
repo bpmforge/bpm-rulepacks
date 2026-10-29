@@ -19,7 +19,7 @@ rule:
           - { kind: do_statement }
         stopBy: end
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "derived:lodestone/PERF-09"
   cwe: [1050]
   confidence: high

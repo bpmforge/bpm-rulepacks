@@ -11,7 +11,7 @@ message: >
   instantiate arbitrary Python objects and execute code on load. Use
   yaml.safe_load() or pass Loader=yaml.SafeLoader explicitly.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: "ported:bpm-opencode-experts/OWASP_METHODOLOGY A08"
   cwe: [502]
   owasp: "A08:2021"

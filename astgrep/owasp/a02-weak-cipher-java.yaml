@@ -16,7 +16,7 @@ message: >
   56-bit effective key is brute-forceable and DESede/ECB mode leaks plaintext
   block patterns. Use AES-256/GCM instead, and never ECB mode for any cipher.
 metadata:
-  license: proprietary
+  license: MIT
   provenance: authored
   cwe: [327]
   owasp: "A02:2021"
