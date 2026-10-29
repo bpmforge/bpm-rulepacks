@@ -24,3 +24,14 @@ module.exports = {
   // Documentation-style placeholder telling the reader to supply their own.
   anthropicApiKey: "your-anthropic-key-here",
 };
+
+// A key NAMED after a credential whose value is an identifier or a URL is a
+// field mapping, an enum label or an endpoint, not a secret. 17 of 18 hits
+// on the walkthrough repos were this (Swift CodingKeys, OAuth endpoint maps,
+// saleor error codes, outline's TeamPreference enum).
+const keys = {
+  clientSecret: "client_secret_value",
+  accessToken: "access_token",
+  membersCanCreateApiKey: "membersCanCreateApiKey",
+  token: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+};

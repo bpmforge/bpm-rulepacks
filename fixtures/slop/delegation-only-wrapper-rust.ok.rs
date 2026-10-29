@@ -43,3 +43,14 @@ impl UserRepo {
         Ok(())
     }
 }
+
+// A pub accessor on a wrapper is the encapsulation: callers cannot reach the
+// private field, so this is the only way in (axum's Field::headers).
+pub struct Field {
+    inner: UserRepo,
+}
+impl Field {
+    pub fn fetch(&self) -> User {
+        self.inner.fetch()
+    }
+}

@@ -16,3 +16,13 @@ fn write_pdf(_data: &Report, _buf: &mut Vec<u8>) {}
 
 struct Report;
 struct ExportError;
+
+// Inside the crate's test module a todo!() is a type-level stub that is
+// compiled and never run (axum checks trait bounds this way). 12 of 12
+// axum hits were here.
+#[cfg(test)]
+mod tests {
+    fn create_router() -> u32 {
+        todo!()
+    }
+}

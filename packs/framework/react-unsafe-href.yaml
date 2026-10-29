@@ -25,6 +25,11 @@ rules:
           metavariable: $URL
           patterns:
             - pattern-not: '"..."'
+            # A free-function sanitizer counts too (2026-10-28, RepoPulse
+            # docs/benchmarks/rule-grade-w22-07: outline's sanitizeUrl).
+            - pattern-not: sanitizeUrl(...)
+            - pattern-not: sanitizeHref(...)
+            - pattern-not: sanitize(...)
     metadata:
       license: MIT
       provenance: authored

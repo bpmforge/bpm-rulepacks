@@ -1,9 +1,11 @@
-func processAll(items: [Item]) {
+func processAll(items: [Item]) -> [Result?] {
+    var results: [Result?] = []
     for item in items {
         do {
-            try process(item)
+            results.append(try process(item))
         } catch {
-            print("failed: \(error)")
+            results.append(nil)
         }
     }
+    return results
 }
