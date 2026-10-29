@@ -19,6 +19,22 @@ rule:
     # twice — double-reporting inflates a findings count without adding a fact.
     - not:
         pattern: "try { $$$BODY } catch { }"
+    # The try block must do I/O, sync or async. Narrowed 2026-10-28 after
+    # grading outline (RepoPulse docs/benchmarks/rule-grade-w22-07): 30 of 30
+    # sampled hits were wrong, 25 of them parse-or-fallback over a value
+    # already in memory (new URL(s), JSON.parse(s)), where the lost error only
+    # says "not a URL", which the fallback already means. This is NOT the
+    # `await`-only narrowing rejected below: a *Sync( call counts as I/O, so
+    # quarry's src/fetch/cache.ts:51 (readFileSync) still fires, as the vuln
+    # fixture does.
+    - has:
+        stopBy: end
+        any:
+          - pattern: "await $E"
+          - kind: call_expression
+            regex: "^[\\w.]*Sync\\s*\\("
+          - kind: call_expression
+            regex: "^fetch\\s*\\("
 metadata:
   license: MIT
   provenance: "derived:quarry/LOG-catch-discards-error"

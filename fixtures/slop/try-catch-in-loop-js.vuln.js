@@ -1,9 +1,11 @@
 export function loadAll(items) {
+  const results = [];
   for (const item of items) {
     try {
-      process(item);
+      results.push(process(item));
     } catch (e) {
-      console.log(e);
+      results.push(null);
     }
   }
+  return results;
 }
