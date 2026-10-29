@@ -82,7 +82,11 @@ if (/^(https?:\/\/|git@|ssh:\/\/)/.test(target)) {
 // defects back to them as findings is indefensible.
 //
 // --include-tests turns this off for anyone auditing their own test suite.
-const TEST_PATH_RE = /(^|\/)(tests?|__tests__|__mocks__|spec|specs|e2e|fixtures?|eval|examples?|samples?|mocks?|testdata|__fixtures__)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$/i;
+// `.semgrep/` holds a repo's own rule-test fixtures and `.claude/` its agent
+// tooling; `.env.test`-style files are test config. Added 2026-10-28 after the
+// RepoPulse walkthrough grading found 23 saleor hits in `.semgrep/` and dev
+// scripts in `.claude/skills/` reported as product findings.
+const TEST_PATH_RE = /(^|\/)(tests?|__tests__|__mocks__|spec|specs|e2e|fixtures?|eval|examples?|samples?|mocks?|testdata|__fixtures__|\.semgrep|\.claude)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)\.env\.(test|example|sample)$/i;
 const INCLUDE_TESTS = flag('--include-tests');
 let excludedByPath = 0;
 const isReportable = (file) => {
@@ -223,7 +227,10 @@ const outPath = valOf('--out') || join(tmpdir(), `rulepacks-scan-${basename(scan
 writeFileSync(outPath, JSON.stringify(sarif, null, 2));
 const sarifCount = (sarif.runs || []).reduce((n, r) => n + (r.results?.length || 0), 0);
 console.log(`\nSARIF: ${outPath}  (${sarifCount} results across ${(sarif.runs || []).length} run(s))`);
-if (sarifCount !== findings.length) console.log(`  ⚠ ${findings.length - sarifCount} finding(s) shown above are NOT in the SARIF file.`);
+// The SARIF keeps every engine result; the summary above drops test-path
+// ones. Say which side has the extra rather than printing a negative count.
+if (sarifCount > findings.length) console.log(`  ℹ the SARIF file also holds the ${sarifCount - findings.length} test-path finding(s) left out of the summary above.`);
+else if (sarifCount < findings.length) console.log(`  ⚠ ${findings.length - sarifCount} finding(s) shown above are NOT in the SARIF file.`);
 console.log('No precision/recall reported — an unlabeled repo has no ground truth. Use `npm run score` for that.');
 
 process.exit(flag('--fail-on-findings') && findings.length ? 1 : 0);
